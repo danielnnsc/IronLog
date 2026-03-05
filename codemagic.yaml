@@ -55,12 +55,6 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
-      email:
-        recipients:
-          - $CM_COMMIT_AUTHOR_EMAIL
-        notify:
-          success: true
-          failure: true
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Sideload Build — No Apple Developer account needed
