@@ -1,0 +1,41 @@
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# XcodeGen — regenerated from project.yml, don't commit
+IronLog.xcodeproj/
+
+# User settings
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.xcuserstate
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# CocoaPods (not used, but just in case)
+Pods/
+Podfile.lock
+
+# Codemagic build artifacts
+build/ios/
+
+# Environment / secrets
+.env
+*.p12
+*.mobileprovision

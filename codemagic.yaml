@@ -1,0 +1,107 @@
+workflows:
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # TestFlight Distribution
+  # Requires: Apple Developer account + App Store Connect API key set up in
+  # Codemagic UI (Teams → Integrations → App Store Connect).
+  # ─────────────────────────────────────────────────────────────────────────────
+  ios-testflight:
+    name: iOS — TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    integrations:
+      app_store_connect: Codemagic  # Must match the name in Codemagic UI
+
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.ironlog.app
+      xcode: 15.4
+      vars:
+        BUNDLE_ID: com.ironlog.app
+        XCODE_SCHEME: IronLog
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+
+    scripts:
+      - name: Install XcodeGen
+        script: brew install xcodegen
+
+      - name: Generate Xcode project
+        script: xcodegen generate
+
+      - name: Set up code signing
+        script: xcode-project use-profiles
+
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa \
+            --project "$CM_BUILD_DIR/IronLog.xcodeproj" \
+            --scheme "$XCODE_SCHEME" \
+            --config Release
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        cancel_previous_submissions: true
+      email:
+        recipients:
+          - $CM_COMMIT_AUTHOR_EMAIL
+        notify:
+          success: true
+          failure: true
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Development Build (no Apple Developer account required for the build itself)
+  # Produces an unsigned IPA — useful for checking the project compiles cleanly.
+  # ─────────────────────────────────────────────────────────────────────────────
+  ios-build-check:
+    name: iOS — Build Check
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+
+    environment:
+      xcode: 15.4
+      vars:
+        XCODE_SCHEME: IronLog
+
+    triggering:
+      events:
+        - pull_request
+      branch_patterns:
+        - pattern: "*"
+          include: true
+
+    scripts:
+      - name: Install XcodeGen
+        script: brew install xcodegen
+
+      - name: Generate Xcode project
+        script: xcodegen generate
+
+      - name: Build (no signing)
+        script: |
+          xcodebuild \
+            -project IronLog.xcodeproj \
+            -scheme "$XCODE_SCHEME" \
+            -destination "generic/platform=iOS Simulator" \
+            -configuration Debug \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build | xcpretty
+
+    artifacts:
+      - /tmp/xcodebuild_logs/*.log
