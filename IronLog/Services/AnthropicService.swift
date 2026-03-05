@@ -82,7 +82,9 @@ struct AnthropicService {
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            throw AnthropicError.badResponse
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw AnthropicError.badResponse(statusCode, body)
         }
 
         // Parse the Claude response envelope
@@ -109,11 +111,12 @@ private struct ClaudeResponse: Decodable {
 // MARK: - Errors
 
 enum AnthropicError: LocalizedError {
-    case badResponse, emptyResponse, invalidJSON
+    case badResponse(Int, String), emptyResponse, invalidJSON
 
     var errorDescription: String? {
         switch self {
-        case .badResponse:  return "Couldn't reach the AI service. Check your API key and internet connection."
+        case .badResponse(let code, let body):
+            return "API error \(code): \(body.prefix(200))"
         case .emptyResponse: return "The AI returned an empty response."
         case .invalidJSON:  return "The AI returned an unexpected format."
         }
