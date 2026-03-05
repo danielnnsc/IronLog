@@ -43,6 +43,22 @@ enum ExerciseLibrary {
     static let hipThrustID        = UUID(uuidString: "E0000025-0000-0000-0000-000000000000")!
     static let walkingLungesID    = UUID(uuidString: "E0000026-0000-0000-0000-000000000000")!
 
+    // Core / Abs
+    static let cableCrunchID      = UUID(uuidString: "E0000027-0000-0000-0000-000000000000")!
+    static let hangingLegRaiseID  = UUID(uuidString: "E0000028-0000-0000-0000-000000000000")!
+    static let abWheelRolloutID   = UUID(uuidString: "E0000029-0000-0000-0000-000000000000")!
+    static let plankID            = UUID(uuidString: "E0000030-0000-0000-0000-000000000000")!
+    static let russianTwistID     = UUID(uuidString: "E0000031-0000-0000-0000-000000000000")!
+    static let declineSitUpID     = UUID(uuidString: "E0000032-0000-0000-0000-000000000000")!
+
+    // New Compound / Program-Specific
+    static let conventionalDLID   = UUID(uuidString: "E0000033-0000-0000-0000-000000000000")!
+    static let closeGripBenchID   = UUID(uuidString: "E0000034-0000-0000-0000-000000000000")!
+    static let arnoldPressID      = UUID(uuidString: "E0000035-0000-0000-0000-000000000000")!
+    static let dbPulloverID       = UUID(uuidString: "E0000036-0000-0000-0000-000000000000")!
+    static let tBarRowID          = UUID(uuidString: "E0000037-0000-0000-0000-000000000000")!
+    static let preacherCurlID     = UUID(uuidString: "E0000038-0000-0000-0000-000000000000")!
+
     // MARK: - All Exercises
 
     static func allExercises() -> [Exercise] {
@@ -421,6 +437,178 @@ enum ExerciseLibrary {
                 isBodyweight: false,
                 suggestedStartWeightLbs: 20,
                 alternativeIDs: [bulgarianSSID, legPressID]
+            ),
+
+            // ── Core / Abs ──────────────────────────────────────────────────
+
+            Exercise(
+                id: cableCrunchID,
+                name: "Cable Crunch",
+                primaryMuscles: ["Abs"],
+                secondaryMuscles: ["Hip Flexors"],
+                tier: .accessory,
+                bodyRegion: "core",
+                movementDescription: "Kneeling crunch using a cable with rope attachment. Allows progressive loading of the abs unlike most bodyweight alternatives.",
+                formCues: "Kneel facing the cable stack, rope behind your head. Crunch down with your elbows aiming toward your knees. Round your lower back fully — don't just hip-hinge. Squeeze hard at the bottom.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: nil,
+                alternativeIDs: [hangingLegRaiseID, declineSitUpID]
+            ),
+
+            Exercise(
+                id: hangingLegRaiseID,
+                name: "Hanging Leg Raise",
+                primaryMuscles: ["Abs"],
+                secondaryMuscles: ["Hip Flexors", "Lats"],
+                tier: .accessory,
+                bodyRegion: "core",
+                movementDescription: "Hanging from a bar, raise legs to parallel or higher. One of the best lower ab and hip flexor exercises.",
+                formCues: "Dead hang to start. Raise legs together — keep them straight for more difficulty, bent for easier. Avoid swinging. Lower with control. Posterior tilt your pelvis at the top for max ab contraction.",
+                isBodyweight: true,
+                suggestedStartWeightLbs: nil,
+                alternativeIDs: [cableCrunchID, abWheelRolloutID]
+            ),
+
+            Exercise(
+                id: abWheelRolloutID,
+                name: "Ab Wheel Rollout",
+                primaryMuscles: ["Abs"],
+                secondaryMuscles: ["Lats", "Shoulders", "Lower Back"],
+                tier: .accessory,
+                bodyRegion: "core",
+                movementDescription: "Rolling out with an ab wheel from a kneeling position. An advanced core anti-extension exercise.",
+                formCues: "Start kneeling with hands on wheel directly below shoulders. Brace your core hard before rolling. Roll out as far as you can without your lower back arching. Pull the wheel back using your abs and lats.",
+                isBodyweight: true,
+                suggestedStartWeightLbs: nil,
+                alternativeIDs: [cableCrunchID, plankID]
+            ),
+
+            Exercise(
+                id: plankID,
+                name: "Plank",
+                primaryMuscles: ["Abs"],
+                secondaryMuscles: ["Glutes", "Shoulders", "Lower Back"],
+                tier: .accessory,
+                bodyRegion: "core",
+                movementDescription: "Isometric hold on forearms and toes. Fundamental anti-extension core exercise for stability.",
+                formCues: "Forearms flat, elbows under shoulders. Body forms a straight line — no sagging hips or raised butt. Squeeze glutes and abs simultaneously. Breathe normally. Progress by adding time.",
+                isBodyweight: true,
+                suggestedStartWeightLbs: nil,
+                alternativeIDs: [abWheelRolloutID]
+            ),
+
+            Exercise(
+                id: russianTwistID,
+                name: "Russian Twist",
+                primaryMuscles: ["Obliques"],
+                secondaryMuscles: ["Abs", "Hip Flexors"],
+                tier: .accessory,
+                bodyRegion: "core",
+                movementDescription: "Seated rotational exercise targeting the obliques. Can be loaded with a weight plate or medicine ball.",
+                formCues: "Lean back to about 45°. Feet off the ground or resting on floor. Rotate fully side to side — touch the weight to the ground each side. Keep your lower back from rounding excessively.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 10,
+                alternativeIDs: [cableCrunchID, hangingLegRaiseID]
+            ),
+
+            Exercise(
+                id: declineSitUpID,
+                name: "Decline Sit-Up",
+                primaryMuscles: ["Abs"],
+                secondaryMuscles: ["Hip Flexors"],
+                tier: .accessory,
+                bodyRegion: "core",
+                movementDescription: "Sit-up on a decline bench, increasing range of motion and resistance compared to flat floor sit-ups.",
+                formCues: "Secure feet, cross arms over chest or hold weight at chest. Lower all the way down under control. Come up until torso is perpendicular to the floor. Don't use momentum — controlled movement throughout.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: nil,
+                alternativeIDs: [cableCrunchID, hangingLegRaiseID]
+            ),
+
+            // ── Compound / Program-Specific ─────────────────────────────────
+
+            Exercise(
+                id: conventionalDLID,
+                name: "Conventional Deadlift",
+                primaryMuscles: ["Hamstrings", "Glutes"],
+                secondaryMuscles: ["Lower Back", "Traps", "Quads", "Core"],
+                tier: .anchor,
+                bodyRegion: "lower",
+                movementDescription: "Barbell pulled from the floor to hip lockout. The king of posterior chain exercises and a primary strength marker.",
+                formCues: "Bar over mid-foot, hip-width stance. Hinge down, grip just outside your legs. Big breath and brace before pulling. Bar stays close — drag it up your shins. Push the floor away, then drive hips through at lockout.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 135,
+                alternativeIDs: [romanianDLID, hipThrustID]
+            ),
+
+            Exercise(
+                id: closeGripBenchID,
+                name: "Close-Grip Bench Press",
+                primaryMuscles: ["Triceps"],
+                secondaryMuscles: ["Chest", "Front Delt"],
+                tier: .secondary,
+                bodyRegion: "upper",
+                movementDescription: "Barbell bench press with a shoulder-width or slightly narrower grip to emphasize the triceps over the chest.",
+                formCues: "Grip just inside shoulder-width — not too narrow (wrist strain). Same setup as regular bench: retract shoulder blades, feet flat. Tuck elbows closer to body (about 45°). Full range of motion.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 75,
+                alternativeIDs: [tricepPushdownID, dipsID]
+            ),
+
+            Exercise(
+                id: arnoldPressID,
+                name: "Arnold Press",
+                primaryMuscles: ["Front Delt", "Lateral Delt"],
+                secondaryMuscles: ["Triceps", "Rear Delt"],
+                tier: .secondary,
+                bodyRegion: "upper",
+                movementDescription: "Dumbbell shoulder press with rotation through the range of motion, invented by Arnold Schwarzenegger. Hits all three deltoid heads.",
+                formCues: "Start with palms facing you (like the top of a curl). As you press up, rotate so palms face forward at the top. Reverse on the way down. Keep the movement smooth — don't rush the rotation.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 25,
+                alternativeIDs: [ohpID, dbShoulderPressID]
+            ),
+
+            Exercise(
+                id: dbPulloverID,
+                name: "Dumbbell Pullover",
+                primaryMuscles: ["Lats"],
+                secondaryMuscles: ["Chest", "Triceps", "Serratus"],
+                tier: .accessory,
+                bodyRegion: "upper",
+                movementDescription: "Lying across or along a bench, lower a dumbbell overhead and pull it back. Classic Arnold Split exercise for lat and chest development.",
+                formCues: "Lie perpendicular to the bench, upper back supported. Hold one dumbbell with both hands above your chest. Maintain a slight elbow bend. Lower behind your head until you feel a stretch, pull back to start.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 30,
+                alternativeIDs: [pullUpsID, cableRowID]
+            ),
+
+            Exercise(
+                id: tBarRowID,
+                name: "T-Bar Row",
+                primaryMuscles: ["Upper Back", "Lats"],
+                secondaryMuscles: ["Biceps", "Rear Delt", "Lower Back"],
+                tier: .secondary,
+                bodyRegion: "upper",
+                movementDescription: "Barbell row with one end anchored and the other loaded. Allows heavy loading with a neutral grip option for back thickness.",
+                formCues: "Straddle the bar, hinge forward to about 45°. Neutral or pronated grip. Pull to your lower chest. Lead with your elbows, not your hands. Squeeze shoulder blades at the top. Control the descent.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 45,
+                alternativeIDs: [barbellRowID, cableRowID]
+            ),
+
+            Exercise(
+                id: preacherCurlID,
+                name: "Preacher Curl",
+                primaryMuscles: ["Biceps"],
+                secondaryMuscles: ["Brachialis"],
+                tier: .accessory,
+                bodyRegion: "upper",
+                movementDescription: "EZ-bar or dumbbell curl on a preacher bench. Eliminates momentum and provides a strong stretch at the bottom.",
+                formCues: "Upper arms fully on the pad, don't lift your arms off at the top. Full range — let the weight fully extend at the bottom. Squeeze at the top. Use lighter weight than regular curls — there's nowhere to cheat.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 30,
+                alternativeIDs: [bicepCurlID, hammerCurlID]
             ),
         ]
     }

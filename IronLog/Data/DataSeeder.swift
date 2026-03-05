@@ -1,19 +1,27 @@
 import SwiftData
 import Foundation
 
-/// Seeds the exercise library into SwiftData on first launch.
-/// Safe to call on every launch — exits immediately if already seeded.
+/// Seeds the exercise library into SwiftData on first launch and adds new exercises on updates.
 @MainActor
 struct DataSeeder {
 
     static func seedExercisesIfNeeded(in context: ModelContext) throws {
-        let descriptor = FetchDescriptor<Exercise>()
-        let count = try context.fetchCount(descriptor)
-        guard count == 0 else { return }
+        let allDefined = ExerciseLibrary.allExercises()
 
-        for exercise in ExerciseLibrary.allExercises() {
+        // Fetch all existing exercise IDs in one query
+        let descriptor = FetchDescriptor<Exercise>()
+        let existing = try context.fetch(descriptor)
+        let existingIDs = Set(existing.map(\.id))
+
+        // Insert only exercises that don't exist yet (safe for fresh installs and updates)
+        var inserted = false
+        for exercise in allDefined where !existingIDs.contains(exercise.id) {
             context.insert(exercise)
+            inserted = true
         }
-        try context.save()
+
+        if inserted {
+            try context.save()
+        }
     }
 }

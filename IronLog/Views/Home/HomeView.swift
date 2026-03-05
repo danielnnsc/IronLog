@@ -12,8 +12,24 @@ struct HomeView: View {
     @Query(sort: \WorkoutLog.completedAt, order: .reverse)
     private var recentLogs: [WorkoutLog]
 
+    @Query(filter: #Predicate<Program> { $0.isActive }) private var activePrograms: [Program]
+
     @State private var showingSession = false
     @State private var navigateToActive = false
+    @State private var showingProgramBrowser = false
+
+    private var activeProgramType: ProgramType? {
+        // Infer the program type from the session template names
+        guard let templates = activePrograms.first?.sessionTemplates else { return nil }
+        let names = Set(templates.map(\.name))
+        if names.contains("Push") { return .pushPullLegs }
+        if names.contains("Workout A") { return .stronglifts }
+        if names.contains("Chest & Back") { return .arnoldSplit }
+        if names.contains("Power Upper") { return .phul }
+        if names.contains("Chest") && names.contains("Arms") { return .muscleGroupSplit }
+        if names.contains("Full Body A") { return .fullBody }
+        return .upperLower
+    }
 
     var nextSession: QueuedSession? { queue.first }
 
@@ -25,6 +41,7 @@ struct HomeView: View {
                 ScrollView {
                     VStack(spacing: Spacing.lg) {
                         headerSection
+                        activeProgramRow
                         nextSessionCard
                         if queue.count > 1 { upcomingSection }
                         if !recentLogs.isEmpty { recentSection }
@@ -38,6 +55,49 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbarBackground(AppTheme.background, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            .sheet(isPresented: $showingProgramBrowser) {
+                ProgramBrowserView(currentProgramType: activeProgramType)
+            }
+        }
+    }
+
+    // MARK: - Active Program Row
+
+    private var activeProgramRow: some View {
+        let def = activeProgramType.map { ProgramLibrary.definition(for: $0) }
+        return Button {
+            showingProgramBrowser = true
+        } label: {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: def?.icon ?? "dumbbell.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(AppTheme.accent)
+                    .frame(width: 32, height: 32)
+                    .background(AppTheme.accent.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(def?.name ?? "Program")
+                        .font(.ironLogHeadline)
+                        .foregroundColor(AppTheme.textPrimary)
+                    Text("Active program")
+                        .font(.ironLogMicro)
+                        .foregroundColor(AppTheme.textTertiary)
+                }
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    Text("Change")
+                        .font(.ironLogCaption)
+                        .foregroundColor(AppTheme.accent)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12))
+                        .foregroundColor(AppTheme.accent)
+                }
+            }
+            .padding(Spacing.sm)
+            .ironLogCard()
         }
     }
 
