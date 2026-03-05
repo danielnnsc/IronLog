@@ -29,8 +29,10 @@ struct ActiveWorkoutView: View {
     @State private var restStartDate: Date? = nil
     @State private var restTimer_timer: Timer?
 
-    // Edit mode — tap a logged set to pre-fill inputs
+    // Inline edit state — independent of main logger inputs
     @State private var editingSet: (entryID: UUID, index: Int)? = nil
+    @State private var editWeight: Double = 0
+    @State private var editReps: Int = 0
 
     @State private var sessionStartTime = Date.now
     @State private var showingComplete = false
@@ -256,29 +258,17 @@ struct ActiveWorkoutView: View {
     private var setLogger: some View {
         guard let entry = currentEntry else { return AnyView(EmptyView()) }
         let targetMet = currentSets.count >= entry.targetSets
-        let isEditing = editingSet?.entryID == entry.id
-        let setNumber = isEditing ? (editingSet!.index + 1) : (currentSets.count + 1)
+        let setNumber = currentSets.count + 1
         let entryID = entry.id
 
         return AnyView(
             VStack(spacing: Spacing.md) {
                 HStack {
-                    Text(isEditing ? "EDITING SET \(setNumber)" : (targetMet ? "EXTRA SET" : "SET \(setNumber)"))
+                    Text(targetMet ? "EXTRA SET" : "SET \(setNumber)")
                         .font(.ironLogCaption)
-                        .foregroundColor(isEditing ? AppTheme.orange : (targetMet ? AppTheme.textTertiary : AppTheme.textTertiary))
+                        .foregroundColor(AppTheme.textTertiary)
                         .tracking(1.5)
-
                     Spacer()
-
-                    if isEditing {
-                        Button {
-                            editingSet = nil
-                        } label: {
-                            Text("Cancel")
-                                .font(.ironLogCaption)
-                                .foregroundColor(AppTheme.textTertiary)
-                        }
-                    }
                 }
 
                 // Weight and reps inputs
@@ -364,14 +354,7 @@ struct ActiveWorkoutView: View {
 
                 rpeSelector(entryID: entryID)
 
-                if isEditing {
-                    Button { updateSet() } label: {
-                        Text("Update Set \(setNumber)")
-                            .ironLogPrimaryButton()
-                    }
-                    .disabled((reps[entryID] ?? 0) == 0)
-                    .opacity((reps[entryID] ?? 0) == 0 ? 0.4 : 1)
-                } else if targetMet {
+                if targetMet {
                     HStack(spacing: Spacing.sm) {
                         Text("Target met ✓")
                             .font(.ironLogCaption)
@@ -472,61 +455,121 @@ struct ActiveWorkoutView: View {
 
             ForEach(Array(currentSets.enumerated()), id: \.element.id) { index, set in
                 let isBeingEdited = editingSet?.entryID == currentEntry?.id && editingSet?.index == index
-                HStack {
-                    Text("Set \(set.setNumber)")
-                        .font(.ironLogCaption)
-                        .foregroundColor(AppTheme.textTertiary)
-                        .frame(width: 44, alignment: .leading)
 
-                    Text("\(Int(set.weightLbs)) lbs × \(set.reps) reps")
-                        .font(.ironLogBody)
-                        .foregroundColor(isBeingEdited ? AppTheme.orange : AppTheme.textPrimary)
-
-                    if let rpeVal = set.rpe {
-                        Text("RPE \(rpeVal)")
+                VStack(spacing: Spacing.xs) {
+                    HStack {
+                        Text("Set \(set.setNumber)")
                             .font(.ironLogCaption)
-                            .foregroundColor(AppTheme.textSecondary)
-                    }
+                            .foregroundColor(AppTheme.textTertiary)
+                            .frame(width: 44, alignment: .leading)
 
-                    Spacer()
-
-                    // Edit button
-                    Button {
-                        guard let entry = currentEntry else { return }
-                        editingSet = (entryID: entry.id, index: index)
-                        weights[entry.id] = set.weightLbs
-                        reps[entry.id] = set.reps
-                        rpe[entry.id] = set.rpe
-                    } label: {
-                        Image(systemName: isBeingEdited ? "pencil.circle.fill" : "pencil.circle")
-                            .foregroundColor(isBeingEdited ? AppTheme.orange : AppTheme.textTertiary)
-                            .font(.system(size: 18))
-                    }
-
-                    // Delete button
-                    Button {
-                        guard let entry = currentEntry else { return }
-                        loggedSets[entry.id]?.remove(at: index)
-                        // Renumber remaining sets
-                        for i in index..<(loggedSets[entry.id]?.count ?? 0) {
-                            loggedSets[entry.id]?[i] = SetLog(
-                                exerciseID: loggedSets[entry.id]![i].exerciseID,
-                                setNumber: i + 1,
-                                weightLbs: loggedSets[entry.id]![i].weightLbs,
-                                reps: loggedSets[entry.id]![i].reps,
-                                targetReps: loggedSets[entry.id]![i].targetReps,
-                                rpe: loggedSets[entry.id]![i].rpe,
-                                hitTarget: loggedSets[entry.id]![i].hitTarget,
-                                restDurationSeconds: loggedSets[entry.id]![i].restDurationSeconds
-                            )
+                        if !isBeingEdited {
+                            Text("\(Int(set.weightLbs)) lbs × \(set.reps) reps")
+                                .font(.ironLogBody)
+                                .foregroundColor(AppTheme.textPrimary)
+                            if let rpeVal = set.rpe {
+                                Text("RPE \(rpeVal)")
+                                    .font(.ironLogCaption)
+                                    .foregroundColor(AppTheme.textSecondary)
+                            }
                         }
-                        if editingSet?.index == index { editingSet = nil }
-                        saveDraft()
-                    } label: {
-                        Image(systemName: "trash")
-                            .foregroundColor(AppTheme.red)
-                            .font(.system(size: 16))
-                            .frame(width: 32, height: 32)
+
+                        Spacer()
+
+                        // Edit button
+                        Button {
+                            guard let entry = currentEntry else { return }
+                            if isBeingEdited {
+                                editingSet = nil
+                            } else {
+                                editWeight = set.weightLbs
+                                editReps = set.reps
+                                editingSet = (entryID: entry.id, index: index)
+                            }
+                        } label: {
+                            Image(systemName: isBeingEdited ? "xmark.circle" : "pencil.circle")
+                                .foregroundColor(isBeingEdited ? AppTheme.textTertiary : AppTheme.textTertiary)
+                                .font(.system(size: 18))
+                        }
+
+                        // Delete button
+                        Button {
+                            guard let entry = currentEntry else { return }
+                            loggedSets[entry.id]?.remove(at: index)
+                            for i in index..<(loggedSets[entry.id]?.count ?? 0) {
+                                loggedSets[entry.id]?[i] = SetLog(
+                                    exerciseID: loggedSets[entry.id]![i].exerciseID,
+                                    setNumber: i + 1,
+                                    weightLbs: loggedSets[entry.id]![i].weightLbs,
+                                    reps: loggedSets[entry.id]![i].reps,
+                                    targetReps: loggedSets[entry.id]![i].targetReps,
+                                    rpe: loggedSets[entry.id]![i].rpe,
+                                    hitTarget: loggedSets[entry.id]![i].hitTarget,
+                                    restDurationSeconds: loggedSets[entry.id]![i].restDurationSeconds
+                                )
+                            }
+                            if editingSet?.index == index { editingSet = nil }
+                            saveDraft()
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundColor(AppTheme.red)
+                                .font(.system(size: 16))
+                                .frame(width: 32, height: 32)
+                        }
+                    }
+
+                    // Inline edit controls
+                    if isBeingEdited {
+                        HStack(spacing: Spacing.sm) {
+                            // Weight stepper
+                            HStack(spacing: Spacing.xs) {
+                                Button { editWeight = max(0, editWeight - 5) } label: {
+                                    Image(systemName: "minus").frame(width: 30, height: 30)
+                                        .background(AppTheme.surface2).clipShape(Circle())
+                                        .foregroundColor(AppTheme.textPrimary)
+                                }
+                                Text("\(Int(editWeight)) lbs")
+                                    .font(.ironLogBody).fontWeight(.semibold)
+                                    .foregroundColor(AppTheme.textPrimary)
+                                    .frame(minWidth: 64)
+                                Button { editWeight += 5 } label: {
+                                    Image(systemName: "plus").frame(width: 30, height: 30)
+                                        .background(AppTheme.surface2).clipShape(Circle())
+                                        .foregroundColor(AppTheme.textPrimary)
+                                }
+                            }
+
+                            Divider().frame(height: 24).background(AppTheme.border)
+
+                            // Reps stepper
+                            HStack(spacing: Spacing.xs) {
+                                Button { editReps = max(0, editReps - 1) } label: {
+                                    Image(systemName: "minus").frame(width: 30, height: 30)
+                                        .background(AppTheme.surface2).clipShape(Circle())
+                                        .foregroundColor(AppTheme.textPrimary)
+                                }
+                                Text("\(editReps) reps")
+                                    .font(.ironLogBody).fontWeight(.semibold)
+                                    .foregroundColor(AppTheme.textPrimary)
+                                    .frame(minWidth: 56)
+                                Button { editReps += 1 } label: {
+                                    Image(systemName: "plus").frame(width: 30, height: 30)
+                                        .background(AppTheme.surface2).clipShape(Circle())
+                                        .foregroundColor(AppTheme.textPrimary)
+                                }
+                            }
+
+                            Spacer()
+
+                            // Save
+                            Button { updateSet() } label: {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(AppTheme.green)
+                                    .font(.system(size: 26))
+                            }
+                        }
+                        .padding(.leading, 44)
+                        .padding(.top, 4)
                     }
                 }
                 .padding(.vertical, 6)
@@ -675,27 +718,23 @@ struct ActiveWorkoutView: View {
 
     private func updateSet() {
         guard let editInfo = editingSet,
-              let entry = currentEntry,
-              editInfo.entryID == entry.id,
-              editInfo.index < (loggedSets[entry.id]?.count ?? 0) else {
+              let entry = entries.first(where: { $0.id == editInfo.entryID }),
+              editInfo.index < (loggedSets[editInfo.entryID]?.count ?? 0) else {
             editingSet = nil
             return
         }
 
-        let w = weights[entry.id] ?? 0
-        let r = reps[entry.id] ?? 0
-        let rpeVal = rpe[entry.id] ?? nil
         let topRep = ProgressionEngine.topRep(from: entry.targetReps)
-        let hitTarget = r >= topRep
-        let existingSet = loggedSets[entry.id]![editInfo.index]
+        let hitTarget = editReps >= topRep
+        let existingSet = loggedSets[editInfo.entryID]![editInfo.index]
 
-        loggedSets[entry.id]![editInfo.index] = SetLog(
+        loggedSets[editInfo.entryID]![editInfo.index] = SetLog(
             exerciseID: existingSet.exerciseID,
             setNumber: existingSet.setNumber,
-            weightLbs: w,
-            reps: r,
+            weightLbs: editWeight,
+            reps: editReps,
             targetReps: existingSet.targetReps,
-            rpe: rpeVal,
+            rpe: existingSet.rpe,
             hitTarget: hitTarget,
             restDurationSeconds: existingSet.restDurationSeconds
         )
