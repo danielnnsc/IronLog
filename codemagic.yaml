@@ -20,8 +20,6 @@ workflows:
 
     environment:
       xcode: latest
-      groups:
-        - ironlog_secrets
       vars:
         XCODE_SCHEME: IronLog
 
