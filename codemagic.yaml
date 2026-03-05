@@ -1,55 +1,6 @@
 workflows:
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # TestFlight Distribution
-  # Requires: Apple Developer account + App Store Connect API key set up in
-  # Codemagic UI (Teams → Integrations → App Store Connect).
-  # ─────────────────────────────────────────────────────────────────────────────
-  ios-testflight:
-    name: iOS — TestFlight
-    max_build_duration: 60
-    instance_type: mac_mini_m2
-
-    integrations:
-      app_store_connect: Codemagic  # Must match the name in Codemagic UI
-
-    environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.ironlog.app
-      xcode: 15.4
-      vars:
-        BUNDLE_ID: com.ironlog.app
-        XCODE_SCHEME: IronLog
-
-    scripts:
-      - name: Install XcodeGen
-        script: brew install xcodegen
-
-      - name: Generate Xcode project
-        script: xcodegen generate
-
-      - name: Set up code signing
-        script: xcode-project use-profiles
-
-      - name: Build IPA
-        script: |
-          xcode-project build-ipa \
-            --project "$CM_BUILD_DIR/IronLog.xcodeproj" \
-            --scheme "$XCODE_SCHEME" \
-            --config Release
-
-    artifacts:
-      - build/ios/ipa/*.ipa
-      - /tmp/xcodebuild_logs/*.log
-      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
-
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-
-  # ─────────────────────────────────────────────────────────────────────────────
   # Sideload Build — No Apple Developer account needed
   #
   # Produces an unsigned IPA you can install on your own iPhone using Sideloadly
