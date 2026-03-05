@@ -40,4 +40,5 @@ build/ios/
 *.p12
 *.mobileprovision
 
-# Config.example.swift is the template; Config.swift is committed (private repo)
+# API keys — never commit
+IronLog/Config.swift
