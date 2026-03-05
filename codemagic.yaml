@@ -19,7 +19,7 @@ workflows:
     instance_type: mac_mini_m2
 
     environment:
-      xcode: 15.4
+      xcode: latest
       vars:
         XCODE_SCHEME: IronLog
 
