@@ -20,6 +20,8 @@ workflows:
 
     environment:
       xcode: latest
+      groups:
+        - ironlog_secrets
       vars:
         XCODE_SCHEME: IronLog
 
@@ -36,11 +38,8 @@ workflows:
 
       - name: Write Config.swift from secret
         script: |
-          cat > "$CM_BUILD_DIR/IronLog/Config.swift" <<EOF
-          enum Config {
-              static let anthropicAPIKey = "$ANTHROPIC_API_KEY"
-          }
-          EOF
+          printf 'enum Config {\n    static let anthropicAPIKey = "%s"\n}\n' "$ANTHROPIC_API_KEY" \
+            > "$CM_BUILD_DIR/IronLog/Config.swift"
 
       - name: Generate Xcode project
         script: xcodegen generate
