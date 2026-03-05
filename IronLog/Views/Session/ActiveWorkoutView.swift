@@ -642,6 +642,17 @@ struct ActiveWorkoutView: View {
 
         try? modelContext.save()
 
+        // Save to Apple Health in the background
+        let workoutStart = sessionStartTime
+        let totalVolume = allSets.reduce(0.0) { $0 + $1.weightLbs * Double($1.reps) }
+        Task {
+            await HealthKitManager.shared.saveWorkout(
+                startDate: workoutStart,
+                durationMinutes: duration,
+                totalVolumeLbs: totalVolume
+            )
+        }
+
         completedLog = workoutLog
         showingComplete = true
     }

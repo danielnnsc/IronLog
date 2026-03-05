@@ -43,6 +43,8 @@ targets:
           - UIInterfaceOrientationPortrait
         UIUserInterfaceStyle: Dark
         NSUserNotificationsUsageDescription: "IronLog sends a reminder when you miss a scheduled training day."
+        NSHealthUpdateUsageDescription: "IronLog saves your completed workouts to Apple Health so they appear in the Fitness app and count toward your Activity rings."
+        NSHealthShareUsageDescription: "IronLog reads health data to help personalize your training."
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
           UISceneConfigurations: {}
