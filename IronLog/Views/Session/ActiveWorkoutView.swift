@@ -34,6 +34,7 @@ struct ActiveWorkoutView: View {
     @State private var swapEntry: TemplateEntry?
     @State private var showAbortAlert = false
     @State private var dragOffset: CGFloat = 0
+    @State private var navDirection: Int = 1   // 1 = forward, -1 = backward
 
     // MARK: - Computed
 
@@ -67,29 +68,34 @@ struct ActiveWorkoutView: View {
 
                 Divider().background(AppTheme.border)
 
-                ScrollView {
-                    VStack(spacing: Spacing.md) {
-                        exerciseHeader
-                        setLogger
-                        if !currentSets.isEmpty { loggedSetsView }
-                        Spacer(minLength: Spacing.xxl)
+                ZStack {
+                    ScrollView {
+                        VStack(spacing: Spacing.md) {
+                            exerciseHeader
+                            setLogger
+                            if !currentSets.isEmpty { loggedSetsView }
+                            Spacer(minLength: Spacing.xxl)
+                        }
+                        .padding(.horizontal, Spacing.md)
+                        .padding(.top, Spacing.md)
                     }
-                    .padding(.horizontal, Spacing.md)
-                    .padding(.top, Spacing.md)
-                    .offset(x: dragOffset)
-                    .animation(.interactiveSpring(), value: dragOffset)
+                    .id(currentExerciseIndex)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: navDirection >= 0 ? .trailing : .leading),
+                        removal:   .move(edge: navDirection >= 0 ? .leading  : .trailing)
+                    ))
                 }
+                .offset(x: dragOffset)
+                .clipped()
                 .gesture(
                     DragGesture(minimumDistance: 20)
                         .onChanged { value in
-                            // Only track primarily-horizontal drags
                             guard abs(value.translation.width) > abs(value.translation.height) else { return }
                             let atStart = currentExerciseIndex == 0 && value.translation.width > 0
                             let atEnd = currentExerciseIndex == entries.count - 1 && value.translation.width < 0
-                            // Apply rubberband resistance at edges
                             dragOffset = (atStart || atEnd)
-                                ? value.translation.width * 0.2
-                                : value.translation.width * 0.6
+                                ? value.translation.width * 0.15
+                                : value.translation.width * 0.45
                         }
                         .onEnded { value in
                             guard abs(value.translation.width) > abs(value.translation.height) else {
@@ -97,13 +103,20 @@ struct ActiveWorkoutView: View {
                                 return
                             }
                             let threshold: CGFloat = 60
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                if value.translation.width < -threshold && currentExerciseIndex < entries.count - 1 {
+                            if value.translation.width < -threshold, currentExerciseIndex < entries.count - 1 {
+                                navDirection = 1
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                                     currentExerciseIndex += 1
-                                } else if value.translation.width > threshold && currentExerciseIndex > 0 {
-                                    currentExerciseIndex -= 1
+                                    dragOffset = 0
                                 }
-                                dragOffset = 0
+                            } else if value.translation.width > threshold, currentExerciseIndex > 0 {
+                                navDirection = -1
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                                    currentExerciseIndex -= 1
+                                    dragOffset = 0
+                                }
+                            } else {
+                                withAnimation(.spring()) { dragOffset = 0 }
                             }
                         }
                 )
@@ -491,7 +504,8 @@ struct ActiveWorkoutView: View {
         HStack(spacing: Spacing.sm) {
             Button {
                 if currentExerciseIndex > 0 {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    navDirection = -1
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                         currentExerciseIndex -= 1
                     }
                 }
@@ -506,7 +520,8 @@ struct ActiveWorkoutView: View {
 
             Button {
                 if currentExerciseIndex < entries.count - 1 {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    navDirection = 1
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                         currentExerciseIndex += 1
                     }
                 } else {
