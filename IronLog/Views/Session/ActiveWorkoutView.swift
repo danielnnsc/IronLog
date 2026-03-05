@@ -33,6 +33,7 @@ struct ActiveWorkoutView: View {
     @State private var infoExercise: Exercise?
     @State private var swapEntry: TemplateEntry?
     @State private var showAbortAlert = false
+    @State private var dragOffset: CGFloat = 0
 
     // MARK: - Computed
 
@@ -75,7 +76,37 @@ struct ActiveWorkoutView: View {
                     }
                     .padding(.horizontal, Spacing.md)
                     .padding(.top, Spacing.md)
+                    .offset(x: dragOffset)
+                    .animation(.interactiveSpring(), value: dragOffset)
                 }
+                .gesture(
+                    DragGesture(minimumDistance: 20)
+                        .onChanged { value in
+                            // Only track primarily-horizontal drags
+                            guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                            let atStart = currentExerciseIndex == 0 && value.translation.width > 0
+                            let atEnd = currentExerciseIndex == entries.count - 1 && value.translation.width < 0
+                            // Apply rubberband resistance at edges
+                            dragOffset = (atStart || atEnd)
+                                ? value.translation.width * 0.2
+                                : value.translation.width * 0.6
+                        }
+                        .onEnded { value in
+                            guard abs(value.translation.width) > abs(value.translation.height) else {
+                                withAnimation(.spring()) { dragOffset = 0 }
+                                return
+                            }
+                            let threshold: CGFloat = 60
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                if value.translation.width < -threshold && currentExerciseIndex < entries.count - 1 {
+                                    currentExerciseIndex += 1
+                                } else if value.translation.width > threshold && currentExerciseIndex > 0 {
+                                    currentExerciseIndex -= 1
+                                }
+                                dragOffset = 0
+                            }
+                        }
+                )
 
                 if restTimer != .idle {
                     restTimerBar
@@ -305,6 +336,22 @@ struct ActiveWorkoutView: View {
 
     // MARK: - RPE Selector
 
+    private func rpeDefinition(_ value: Int) -> String {
+        switch value {
+        case 1:  return "Very light — minimal effort"
+        case 2:  return "Light — easy, could go much longer"
+        case 3:  return "Moderate light — comfortable pace"
+        case 4:  return "Moderate — starting to feel it"
+        case 5:  return "Moderate hard — challenging but manageable"
+        case 6:  return "Hard — ~4 reps left in the tank"
+        case 7:  return "Hard — ~3 reps left in the tank"
+        case 8:  return "Very hard — ~2 reps left in the tank"
+        case 9:  return "Near-maximal — 1 rep left in the tank"
+        case 10: return "All-out — nothing left, true max effort"
+        default: return ""
+        }
+    }
+
     private func rpeSelector(entryID: UUID) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack {
@@ -312,7 +359,7 @@ struct ActiveWorkoutView: View {
                     .font(.ironLogCaption)
                     .foregroundColor(AppTheme.textTertiary)
                 Spacer()
-                if let r = rpe[entryID], let rVal = r {
+                if let r = rpe[entryID], r != nil {
                     Button {
                         rpe[entryID] = nil
                     } label: {
@@ -338,6 +385,13 @@ struct ActiveWorkoutView: View {
                             .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                     }
                 }
+            }
+
+            if let r = rpe[entryID], let selectedValue = r {
+                Text("RPE \(selectedValue) — \(rpeDefinition(selectedValue))")
+                    .font(.ironLogCaption)
+                    .foregroundColor(AppTheme.accent)
+                    .padding(.top, 2)
             }
         }
     }
@@ -436,7 +490,11 @@ struct ActiveWorkoutView: View {
     private var bottomBar: some View {
         HStack(spacing: Spacing.sm) {
             Button {
-                if currentExerciseIndex > 0 { currentExerciseIndex -= 1 }
+                if currentExerciseIndex > 0 {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        currentExerciseIndex -= 1
+                    }
+                }
             } label: {
                 Image(systemName: "chevron.left")
                     .frame(width: 48, height: 48)
@@ -448,7 +506,9 @@ struct ActiveWorkoutView: View {
 
             Button {
                 if currentExerciseIndex < entries.count - 1 {
-                    currentExerciseIndex += 1
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        currentExerciseIndex += 1
+                    }
                 } else {
                     finishWorkout()
                 }
