@@ -5,7 +5,7 @@ struct HomeView: View {
 
     @Environment(\.modelContext) private var modelContext
 
-    @Query(filter: #Predicate<QueuedSession> { $0.status == SessionStatus.queued },
+    @Query(filter: #Predicate<QueuedSession> { $0.statusValue == "queued" },
            sort: \QueuedSession.queuePosition)
     private var queue: [QueuedSession]
 

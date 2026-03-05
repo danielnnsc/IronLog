@@ -175,8 +175,8 @@ struct ProgramGenerator {
         scheduledDays: [Weekday]
     ) throws {
         // Fetch all currently queued sessions, sorted by position
-        var descriptor = FetchDescriptor<QueuedSession>(
-            predicate: #Predicate { $0.status == SessionStatus.queued },
+        let descriptor = FetchDescriptor<QueuedSession>(
+            predicate: #Predicate { $0.statusValue == "queued" },
             sortBy: [SortDescriptor(\.queuePosition)]
         )
         let existingSessions = try context.fetch(descriptor)

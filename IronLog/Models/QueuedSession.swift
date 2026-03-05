@@ -13,8 +13,15 @@ final class QueuedSession {
     var queuePosition: Int        // 1 = next up; reordered on edits
     var designatedDate: Date?     // Loose suggestion — never a hard lock
     var isDeload: Bool
-    var status: SessionStatus
+    /// Raw string backing store — use `status` computed property in app code.
+    /// Stored as String so SwiftData #Predicate can filter on it.
+    var statusValue: String
     var sessionNumber: Int        // e.g. 7 = "Upper A – Session 7"
+
+    var status: SessionStatus {
+        get { SessionStatus(rawValue: statusValue) ?? .queued }
+        set { statusValue = newValue.rawValue }
+    }
 
     var sessionTemplate: SessionTemplate?
 
@@ -51,7 +58,7 @@ final class QueuedSession {
         self.queuePosition = queuePosition
         self.designatedDate = designatedDate
         self.isDeload = isDeload
-        self.status = status
+        self.statusValue = status.rawValue
         self.sessionNumber = sessionNumber
         self.sessionTemplate = sessionTemplate
     }
