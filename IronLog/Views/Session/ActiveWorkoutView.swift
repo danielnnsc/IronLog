@@ -10,6 +10,7 @@ struct ActiveWorkoutView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     @Query private var exercises: [Exercise]
 
@@ -21,17 +22,21 @@ struct ActiveWorkoutView: View {
     @State private var reps: [UUID: Int] = [:]               // entry.id → current reps
     @State private var rpe: [UUID: Int?] = [:]               // entry.id → current RPE
 
+    // Rest timer — computed from start date so background doesn't affect it
     @State private var restTimer: RestTimerState = .idle
     @State private var restElapsed: Int = 0
     @State private var restTarget: Int = 90
+    @State private var restStartDate: Date? = nil
     @State private var restTimer_timer: Timer?
+
+    // Edit mode — tap a logged set to pre-fill inputs
+    @State private var editingSet: (entryID: UUID, index: Int)? = nil
 
     @State private var sessionStartTime = Date.now
     @State private var showingComplete = false
     @State private var completedLog: WorkoutLog?
 
     @State private var infoExercise: Exercise?
-    @State private var swapEntry: TemplateEntry?
     @State private var showAbortAlert = false
     @State private var dragOffset: CGFloat = 0
     @State private var navDirection: Int = 1   // 1 = forward, -1 = backward
@@ -142,7 +147,7 @@ struct ActiveWorkoutView: View {
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
-                    if let entry = currentEntry, let exercise = currentExercise {
+                    if let exercise = currentExercise {
                         infoExercise = exercise
                     }
                 } label: {
@@ -160,7 +165,8 @@ struct ActiveWorkoutView: View {
         .sheet(item: $infoExercise) { ex in
             ExerciseInfoSheet(exercise: ex, onSwap: { infoExercise = nil })
         }
-        .fullScreenCover(isPresented: $showingComplete) {
+        // Fix: onDismiss dismisses ActiveWorkoutView too, returning to Home
+        .fullScreenCover(isPresented: $showingComplete, onDismiss: { dismiss() }) {
             if let log = completedLog {
                 SessionCompleteView(
                     log: log,
@@ -170,8 +176,18 @@ struct ActiveWorkoutView: View {
                 )
             }
         }
-        .onAppear { prepareWeights() }
+        .onAppear {
+            prepareWeights()
+            restoreDraftIfNeeded()
+        }
         .onDisappear { stopRestTimer() }
+        // Fix: sync rest elapsed when returning from background
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active, let start = restStartDate, restTimer != .idle {
+                restElapsed = Int(Date.now.timeIntervalSince(start))
+                if restElapsed >= restTarget { restTimer = .ringing }
+            }
+        }
     }
 
     // MARK: - Navigation Strip
@@ -184,7 +200,12 @@ struct ActiveWorkoutView: View {
                     let sets = loggedSets[entry.id] ?? []
                     let done = sets.count >= entry.targetSets
 
-                    Button { currentExerciseIndex = idx } label: {
+                    Button {
+                        navDirection = idx > currentExerciseIndex ? 1 : -1
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            currentExerciseIndex = idx
+                        }
+                    } label: {
                         VStack(spacing: 4) {
                             Circle()
                                 .fill(done ? AppTheme.green : (idx == currentExerciseIndex ? AppTheme.accent : AppTheme.surface3))
@@ -228,18 +249,30 @@ struct ActiveWorkoutView: View {
 
     private var setLogger: some View {
         guard let entry = currentEntry else { return AnyView(EmptyView()) }
-        let setNumber = currentSets.count + 1
-        let isDone = currentSets.count >= entry.targetSets
+        let targetMet = currentSets.count >= entry.targetSets
+        let isEditing = editingSet?.entryID == entry.id
+        let setNumber = isEditing ? (editingSet!.index + 1) : (currentSets.count + 1)
         let entryID = entry.id
 
         return AnyView(
             VStack(spacing: Spacing.md) {
-                if !isDone {
-                    Text("SET \(setNumber)")
+                HStack {
+                    Text(isEditing ? "EDITING SET \(setNumber)" : (targetMet ? "EXTRA SET" : "SET \(setNumber)"))
                         .font(.ironLogCaption)
-                        .foregroundColor(AppTheme.textTertiary)
+                        .foregroundColor(isEditing ? AppTheme.orange : (targetMet ? AppTheme.textTertiary : AppTheme.textTertiary))
                         .tracking(1.5)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Spacer()
+
+                    if isEditing {
+                        Button {
+                            editingSet = nil
+                        } label: {
+                            Text("Cancel")
+                                .font(.ironLogCaption)
+                                .foregroundColor(AppTheme.textTertiary)
+                        }
+                    }
                 }
 
                 // Weight and reps inputs
@@ -253,8 +286,7 @@ struct ActiveWorkoutView: View {
 
                         HStack(spacing: Spacing.sm) {
                             Button {
-                                let step: Double = 5
-                                weights[entryID] = max(0, (weights[entryID] ?? 0) - step)
+                                weights[entryID] = max(0, (weights[entryID] ?? 0) - 5)
                             } label: {
                                 Image(systemName: "minus")
                                     .frame(width: 36, height: 36)
@@ -269,8 +301,7 @@ struct ActiveWorkoutView: View {
                                 .frame(minWidth: 60)
 
                             Button {
-                                let step: Double = 5
-                                weights[entryID] = (weights[entryID] ?? 0) + step
+                                weights[entryID] = (weights[entryID] ?? 0) + 5
                             } label: {
                                 Image(systemName: "plus")
                                     .frame(width: 36, height: 36)
@@ -325,23 +356,41 @@ struct ActiveWorkoutView: View {
                     .clipShape(RoundedRectangle(cornerRadius: Radius.md))
                 }
 
-                // RPE (optional)
                 rpeSelector(entryID: entryID)
 
-                // Log Set button
-                if !isDone {
+                if isEditing {
+                    Button { updateSet() } label: {
+                        Text("Update Set \(setNumber)")
+                            .ironLogPrimaryButton()
+                    }
+                    .disabled((reps[entryID] ?? 0) == 0)
+                    .opacity((reps[entryID] ?? 0) == 0 ? 0.4 : 1)
+                } else if targetMet {
+                    HStack(spacing: Spacing.sm) {
+                        Text("Target met ✓")
+                            .font(.ironLogCaption)
+                            .foregroundColor(AppTheme.green)
+                        Spacer()
+                        Button { logSet() } label: {
+                            Text("Add Extra Set")
+                                .font(.ironLogCaption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(AppTheme.accent)
+                                .padding(.horizontal, Spacing.md)
+                                .padding(.vertical, Spacing.sm)
+                                .background(AppTheme.accent.opacity(0.12))
+                                .clipShape(Capsule())
+                        }
+                        .disabled((reps[entryID] ?? 0) == 0)
+                        .opacity((reps[entryID] ?? 0) == 0 ? 0.4 : 1)
+                    }
+                } else {
                     Button { logSet() } label: {
                         Text("Log Set \(setNumber)")
                             .ironLogPrimaryButton()
                     }
                     .disabled((reps[entryID] ?? 0) == 0)
                     .opacity((reps[entryID] ?? 0) == 0 ? 0.4 : 1)
-                } else {
-                    Text("All \(entry.targetSets) sets complete")
-                        .font(.ironLogHeadline)
-                        .foregroundColor(AppTheme.green)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, Spacing.md)
                 }
             }
         )
@@ -373,9 +422,7 @@ struct ActiveWorkoutView: View {
                     .foregroundColor(AppTheme.textTertiary)
                 Spacer()
                 if let r = rpe[entryID], r != nil {
-                    Button {
-                        rpe[entryID] = nil
-                    } label: {
+                    Button { rpe[entryID] = nil } label: {
                         Text("Clear")
                             .font(.ironLogCaption)
                             .foregroundColor(AppTheme.textTertiary)
@@ -386,9 +433,7 @@ struct ActiveWorkoutView: View {
             HStack(spacing: Spacing.xs) {
                 ForEach(1...10, id: \.self) { value in
                     let selected = (rpe[entryID] ?? nil) == value
-                    Button {
-                        rpe[entryID] = value
-                    } label: {
+                    Button { rpe[entryID] = value } label: {
                         Text("\(value)")
                             .font(.system(size: 13, weight: selected ? .bold : .regular))
                             .foregroundColor(selected ? .black : AppTheme.textSecondary)
@@ -413,28 +458,23 @@ struct ActiveWorkoutView: View {
 
     private var loggedSetsView: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text("Logged")
-                .font(.ironLogCaption)
+            Text("LOGGED")
+                .font(.ironLogMicro)
+                .fontWeight(.bold)
                 .foregroundColor(AppTheme.textTertiary)
-                .tracking(1)
+                .tracking(1.5)
 
-            ForEach(currentSets, id: \.id) { set in
+            ForEach(Array(currentSets.enumerated()), id: \.element.id) { index, set in
+                let isBeingEdited = editingSet?.entryID == currentEntry?.id && editingSet?.index == index
                 HStack {
                     Text("Set \(set.setNumber)")
                         .font(.ironLogCaption)
                         .foregroundColor(AppTheme.textTertiary)
                         .frame(width: 44, alignment: .leading)
 
-                    Text("\(Int(set.weightLbs)) lbs")
+                    Text("\(Int(set.weightLbs)) lbs × \(set.reps) reps")
                         .font(.ironLogBody)
-                        .foregroundColor(AppTheme.textPrimary)
-
-                    Text("×")
-                        .foregroundColor(AppTheme.textTertiary)
-
-                    Text("\(set.reps) reps")
-                        .font(.ironLogBody)
-                        .foregroundColor(AppTheme.textPrimary)
+                        .foregroundColor(isBeingEdited ? AppTheme.orange : AppTheme.textPrimary)
 
                     if let rpeVal = set.rpe {
                         Text("RPE \(rpeVal)")
@@ -444,8 +484,44 @@ struct ActiveWorkoutView: View {
 
                     Spacer()
 
-                    Image(systemName: set.hitTarget ? "checkmark.circle.fill" : "circle")
-                        .foregroundColor(set.hitTarget ? AppTheme.green : AppTheme.textTertiary)
+                    // Edit button
+                    Button {
+                        guard let entry = currentEntry else { return }
+                        editingSet = (entryID: entry.id, index: index)
+                        weights[entry.id] = set.weightLbs
+                        reps[entry.id] = set.reps
+                        rpe[entry.id] = set.rpe
+                    } label: {
+                        Image(systemName: isBeingEdited ? "pencil.circle.fill" : "pencil.circle")
+                            .foregroundColor(isBeingEdited ? AppTheme.orange : AppTheme.textTertiary)
+                            .font(.system(size: 18))
+                    }
+
+                    // Delete button
+                    Button {
+                        guard let entry = currentEntry else { return }
+                        loggedSets[entry.id]?.remove(at: index)
+                        // Renumber remaining sets
+                        for i in index..<(loggedSets[entry.id]?.count ?? 0) {
+                            loggedSets[entry.id]?[i] = SetLog(
+                                exerciseID: loggedSets[entry.id]![i].exerciseID,
+                                setNumber: i + 1,
+                                weightLbs: loggedSets[entry.id]![i].weightLbs,
+                                reps: loggedSets[entry.id]![i].reps,
+                                targetReps: loggedSets[entry.id]![i].targetReps,
+                                rpe: loggedSets[entry.id]![i].rpe,
+                                hitTarget: loggedSets[entry.id]![i].hitTarget,
+                                restDurationSeconds: loggedSets[entry.id]![i].restDurationSeconds
+                            )
+                        }
+                        if editingSet?.index == index { editingSet = nil }
+                        saveDraft()
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundColor(AppTheme.red)
+                            .font(.system(size: 16))
+                            .frame(width: 32, height: 32)
+                    }
                 }
                 .padding(.vertical, 6)
             }
@@ -464,7 +540,7 @@ struct ActiveWorkoutView: View {
                     let progress = min(1.0, Double(restElapsed) / Double(restTarget))
                     (restTimer == .ringing ? AppTheme.orange : AppTheme.accent)
                         .frame(width: geo.size.width * progress)
-                        .animation(.linear(duration: 1), value: restElapsed)
+                        .animation(.linear(duration: 0.5), value: restElapsed)
                 }
             }
             .frame(height: 4)
@@ -484,9 +560,7 @@ struct ActiveWorkoutView: View {
 
                 Spacer()
 
-                Button {
-                    stopRestTimer()
-                } label: {
+                Button { stopRestTimer() } label: {
                     Text("Skip Rest")
                         .font(.ironLogCaption)
                         .foregroundColor(AppTheme.textTertiary)
@@ -575,8 +649,6 @@ struct ActiveWorkoutView: View {
         let setNumber = existingSets.count + 1
         let topRep = ProgressionEngine.topRep(from: entry.targetReps)
         let hitTarget = r >= topRep
-
-        let lastRestStart = existingSets.last.flatMap { _ in Date.now } // simplified
         let restSeconds = restTimer == .idle ? nil : restElapsed
 
         let set = SetLog(
@@ -591,19 +663,53 @@ struct ActiveWorkoutView: View {
         )
 
         loggedSets[entry.id, default: []].append(set)
-
-        // Start rest timer
+        saveDraft()
         startRestTimer(for: exercise)
+    }
+
+    private func updateSet() {
+        guard let editInfo = editingSet,
+              let entry = currentEntry,
+              editInfo.entryID == entry.id,
+              editInfo.index < (loggedSets[entry.id]?.count ?? 0) else {
+            editingSet = nil
+            return
+        }
+
+        let w = weights[entry.id] ?? 0
+        let r = reps[entry.id] ?? 0
+        let rpeVal = rpe[entry.id] ?? nil
+        let topRep = ProgressionEngine.topRep(from: entry.targetReps)
+        let hitTarget = r >= topRep
+        let existingSet = loggedSets[entry.id]![editInfo.index]
+
+        loggedSets[entry.id]![editInfo.index] = SetLog(
+            exerciseID: existingSet.exerciseID,
+            setNumber: existingSet.setNumber,
+            weightLbs: w,
+            reps: r,
+            targetReps: existingSet.targetReps,
+            rpe: rpeVal,
+            hitTarget: hitTarget,
+            restDurationSeconds: existingSet.restDurationSeconds
+        )
+
+        editingSet = nil
+        saveDraft()
     }
 
     private func startRestTimer(for exercise: Exercise) {
         stopRestTimer()
+        restStartDate = Date.now
         restElapsed = 0
         restTarget = exercise.tier.restRange.upperBound
         restTimer = .running
 
-        restTimer_timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            restElapsed += 1
+        NotificationManager.shared.scheduleRestComplete(in: restTarget)
+
+        restTimer_timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            guard let start = restStartDate else { return }
+            restElapsed = Int(Date.now.timeIntervalSince(start))
             if restElapsed >= restTarget {
                 restTimer = .ringing
             }
@@ -615,6 +721,8 @@ struct ActiveWorkoutView: View {
         restTimer_timer = nil
         restTimer = .idle
         restElapsed = 0
+        restStartDate = nil
+        NotificationManager.shared.cancelRestComplete()
     }
 
     private func finishWorkout() {
@@ -622,6 +730,7 @@ struct ActiveWorkoutView: View {
 
         let allSets = loggedSets.values.flatMap { $0 }
         guard !allSets.isEmpty else {
+            clearDraft()
             dismiss()
             return
         }
@@ -641,8 +750,8 @@ struct ActiveWorkoutView: View {
         session.workoutLog = workoutLog
 
         try? modelContext.save()
+        clearDraft()
 
-        // Save to Apple Health — prefer HealthKit body mass, fall back to user-entered weight
         let workoutStart = sessionStartTime
         let storedWeightLbs = Double(UserDefaults.standard.integer(forKey: "userWeightLbs"))
         Task {
@@ -657,6 +766,77 @@ struct ActiveWorkoutView: View {
 
         completedLog = workoutLog
         showingComplete = true
+    }
+
+    // MARK: - Draft Autosave
+
+    private var draftKey: String { "workoutDraft_\(session.id.uuidString)" }
+
+    private struct DraftSet: Codable {
+        let entryID: String
+        let setNumber: Int
+        let exerciseID: String
+        let weightLbs: Double
+        let reps: Int
+        let targetReps: String
+        let rpe: Int?
+        let hitTarget: Bool
+    }
+
+    private func saveDraft() {
+        var draftSets: [DraftSet] = []
+        for (entryID, sets) in loggedSets {
+            for set in sets {
+                draftSets.append(DraftSet(
+                    entryID: entryID.uuidString,
+                    setNumber: set.setNumber,
+                    exerciseID: set.exerciseID.uuidString,
+                    weightLbs: set.weightLbs,
+                    reps: set.reps,
+                    targetReps: set.targetReps,
+                    rpe: set.rpe,
+                    hitTarget: set.hitTarget
+                ))
+            }
+        }
+        if let data = try? JSONEncoder().encode(draftSets) {
+            UserDefaults.standard.set(data, forKey: draftKey)
+            UserDefaults.standard.set(sessionStartTime.timeIntervalSince1970, forKey: draftKey + "_start")
+        }
+    }
+
+    private func restoreDraftIfNeeded() {
+        guard let data = UserDefaults.standard.data(forKey: draftKey),
+              let draftSets = try? JSONDecoder().decode([DraftSet].self, from: data) else { return }
+
+        if let startInterval = UserDefaults.standard.object(forKey: draftKey + "_start") as? Double {
+            sessionStartTime = Date(timeIntervalSince1970: startInterval)
+        }
+
+        var restored: [UUID: [SetLog]] = [:]
+        for draft in draftSets {
+            guard let entryID = UUID(uuidString: draft.entryID),
+                  let exerciseID = UUID(uuidString: draft.exerciseID) else { continue }
+            let set = SetLog(
+                exerciseID: exerciseID,
+                setNumber: draft.setNumber,
+                weightLbs: draft.weightLbs,
+                reps: draft.reps,
+                targetReps: draft.targetReps,
+                rpe: draft.rpe,
+                hitTarget: draft.hitTarget,
+                restDurationSeconds: nil
+            )
+            restored[entryID, default: []].append(set)
+        }
+        if !restored.isEmpty {
+            loggedSets = restored
+        }
+    }
+
+    private func clearDraft() {
+        UserDefaults.standard.removeObject(forKey: draftKey)
+        UserDefaults.standard.removeObject(forKey: draftKey + "_start")
     }
 
     // MARK: - Helpers

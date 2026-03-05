@@ -80,6 +80,22 @@ struct NotificationManager {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
     }
 
+    // MARK: - Rest Timer Notification
+
+    func scheduleRestComplete(in seconds: Int) {
+        let content = UNMutableNotificationContent()
+        content.title = "Rest Complete"
+        content.body = "Time for your next set!"
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(max(1, seconds)), repeats: false)
+        let request = UNNotificationRequest(identifier: "rest_complete", content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    func cancelRestComplete() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["rest_complete"])
+    }
+
     // MARK: - Reschedule All
 
     /// Cancels all pending reminders and reschedules for the current queue.

@@ -100,7 +100,7 @@ struct ProgressionEngine {
     static func isStalled(
         exerciseID: UUID,
         priorLogs: [WorkoutLog],
-        minimumSessions: Int = 2
+        minimumSessions: Int = 3
     ) -> Bool {
         // Find logs that contain this exercise, sorted newest first
         let relevantLogs = priorLogs
