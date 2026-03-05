@@ -64,11 +64,20 @@ workflows:
           failure: true
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Development Build (no Apple Developer account required for the build itself)
-  # Produces an unsigned IPA — useful for checking the project compiles cleanly.
+  # Sideload Build — No Apple Developer account needed
+  #
+  # Produces an unsigned IPA you can install on your own iPhone using Sideloadly
+  # (free Windows/Mac app). Apps signed this way expire every 7 days and need
+  # a quick re-sign via Sideloadly.
+  #
+  # Steps after this build:
+  #   1. Download IronLog.ipa from the Codemagic artifacts
+  #   2. Install Sideloadly from sideloadly.io (free, Windows)
+  #   3. Connect iPhone via USB, drag the IPA into Sideloadly, click Start
+  #   4. On iPhone: Settings → General → VPN & Device Management → trust your Apple ID
   # ─────────────────────────────────────────────────────────────────────────────
-  ios-build-check:
-    name: iOS — Build Check
+  ios-sideload:
+    name: iOS — Sideload IPA (no developer account)
     max_build_duration: 30
     instance_type: mac_mini_m2
 
@@ -79,9 +88,9 @@ workflows:
 
     triggering:
       events:
-        - pull_request
+        - push
       branch_patterns:
-        - pattern: "*"
+        - pattern: main
           include: true
 
     scripts:
@@ -91,17 +100,28 @@ workflows:
       - name: Generate Xcode project
         script: xcodegen generate
 
-      - name: Build (no signing)
+      - name: Archive (unsigned)
         script: |
           xcodebuild \
             -project IronLog.xcodeproj \
             -scheme "$XCODE_SCHEME" \
-            -destination "generic/platform=iOS Simulator" \
-            -configuration Debug \
+            -destination "generic/platform=iOS" \
+            -configuration Release \
+            -archivePath "$CM_BUILD_DIR/IronLog.xcarchive" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            build | xcpretty
+            archive
+
+      - name: Package into IPA
+        script: |
+          mkdir -p "$CM_BUILD_DIR/Payload"
+          cp -r "$CM_BUILD_DIR/IronLog.xcarchive/Products/Applications/IronLog.app" \
+            "$CM_BUILD_DIR/Payload/IronLog.app"
+          cd "$CM_BUILD_DIR"
+          zip -r IronLog.ipa Payload
+          echo "IPA created at $CM_BUILD_DIR/IronLog.ipa"
 
     artifacts:
+      - $CM_BUILD_DIR/IronLog.ipa
       - /tmp/xcodebuild_logs/*.log
