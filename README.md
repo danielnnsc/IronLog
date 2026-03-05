@@ -6,6 +6,22 @@ A personal iOS strength training app built with SwiftUI and SwiftData. Designed 
 
 ---
 
+## Screenshots
+
+<p float="left">
+  <img src="screenshots/home.png" width="18%" />
+  <img src="screenshots/active-workout.png" width="18%" />
+  <img src="screenshots/session-complete.png" width="18%" />
+  <img src="screenshots/program-browser.png" width="18%" />
+  <img src="screenshots/exercise-library.png" width="18%" />
+</p>
+<p float="left">
+  <img src="screenshots/calendar.png" width="18%" />
+  <img src="screenshots/progress.png" width="18%" />
+</p>
+
+---
+
 ## Features
 
 ### Workout Tracking
