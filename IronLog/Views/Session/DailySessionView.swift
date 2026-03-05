@@ -10,6 +10,7 @@ struct DailySessionView: View {
     @Query private var exercises: [Exercise]
     @State private var infoExercise: Exercise?
     @State private var swapEntry: TemplateEntry?
+    @State private var showingAddExercise = false
 
     var body: some View {
         ZStack {
@@ -52,6 +53,9 @@ struct DailySessionView: View {
             if let exercise = exercises.first(where: { $0.id == entry.exerciseID }) {
                 ExerciseSwapView(entry: entry, currentExercise: exercise)
             }
+        }
+        .sheet(isPresented: $showingAddExercise) {
+            AddExerciseView(session: session, onAdded: {})
         }
     }
 
@@ -104,6 +108,26 @@ struct DailySessionView: View {
         VStack(spacing: Spacing.sm) {
             ForEach(session.sessionTemplate?.sortedEntries ?? [], id: \.id) { entry in
                 exerciseCard(entry: entry)
+            }
+
+            Button {
+                showingAddExercise = true
+            } label: {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundColor(AppTheme.accent)
+                    Text("Add Exercise")
+                        .font(.ironLogHeadline)
+                        .foregroundColor(AppTheme.accent)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(Spacing.md)
+                .background(AppTheme.accent.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Radius.md)
+                        .stroke(AppTheme.accent.opacity(0.3), lineWidth: 1)
+                )
             }
         }
     }
