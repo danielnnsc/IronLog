@@ -188,6 +188,12 @@ struct ActiveWorkoutView: View {
                 if restElapsed >= restTarget { restTimer = .ringing }
             }
         }
+        // Haptic when rest timer completes
+        .onChange(of: restTimer) { _, newValue in
+            if newValue == .ringing {
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            }
+        }
     }
 
     // MARK: - Navigation Strip

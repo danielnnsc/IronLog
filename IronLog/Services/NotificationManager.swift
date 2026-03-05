@@ -86,7 +86,7 @@ struct NotificationManager {
         let content = UNMutableNotificationContent()
         content.title = "Rest Complete"
         content.body = "Time for your next set!"
-        content.sound = .default
+        content.sound = .defaultCritical
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(max(1, seconds)), repeats: false)
         let request = UNNotificationRequest(identifier: "rest_complete", content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request)
