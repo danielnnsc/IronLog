@@ -5,7 +5,7 @@ import SwiftData
 struct ExerciseInfoSheet: View {
 
     let exercise: Exercise
-    let onSwap: () -> Void
+    var onSwap: (() -> Void)? = nil
 
     @Query private var exercises: [Exercise]
     @Environment(\.dismiss) private var dismiss
@@ -43,16 +43,18 @@ struct ExerciseInfoSheet: View {
                         // Video placeholder
                         videoPlaceholder
 
-                        // Swap button
-                        Button {
-                            dismiss()
-                            onSwap()
-                        } label: {
-                            HStack {
-                                Image(systemName: "arrow.left.arrow.right")
-                                Text("Swap Exercise")
+                        // Swap button — only shown in workout context
+                        if let onSwap {
+                            Button {
+                                dismiss()
+                                onSwap()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "arrow.left.arrow.right")
+                                    Text("Swap Exercise")
+                                }
+                                .ironLogSecondaryButton()
                             }
-                            .ironLogSecondaryButton()
                         }
 
                         Spacer(minLength: Spacing.xl)

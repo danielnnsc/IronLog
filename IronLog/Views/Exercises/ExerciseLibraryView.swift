@@ -88,7 +88,7 @@ struct ExerciseLibraryView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             .searchable(text: $searchText, prompt: "Search by name or muscle")
             .sheet(item: $infoExercise) { ex in
-                ExerciseInfoSheet(exercise: ex, onSwap: { infoExercise = nil })
+                ExerciseInfoSheet(exercise: ex)
             }
             .sheet(item: $addToSessionExercise) { ex in
                 AddToSessionSheet(exercise: ex, activeProgram: activePrograms.first)
@@ -99,24 +99,28 @@ struct ExerciseLibraryView: View {
     // MARK: - Filter Chips
 
     private var filterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Spacing.sm) {
-                filterChip(label: "All Muscles", value: nil, binding: $selectedMuscle)
-                ForEach(muscleGroups, id: \.self) { muscle in
-                    filterChip(label: muscle, value: muscle, binding: $selectedMuscle)
+        VStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Spacing.sm) {
+                    filterChip(label: "All", value: nil, binding: $selectedMuscle)
+                    ForEach(muscleGroups, id: \.self) { muscle in
+                        filterChip(label: muscle, value: muscle, binding: $selectedMuscle)
+                    }
                 }
-
-                Divider()
-                    .frame(height: 20)
-                    .background(AppTheme.border)
-
-                tierChip(label: "All Tiers", value: nil)
-                ForEach(ExerciseTier.allCases, id: \.self) { tier in
-                    tierChip(label: tier.displayName, value: tier)
-                }
+                .padding(.horizontal, Spacing.md)
+                .padding(.vertical, Spacing.sm)
             }
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.sm)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Spacing.sm) {
+                    tierChip(label: "All Tiers", value: nil)
+                    ForEach(ExerciseTier.allCases, id: \.self) { tier in
+                        tierChip(label: tier.displayName, value: tier)
+                    }
+                }
+                .padding(.horizontal, Spacing.md)
+                .padding(.bottom, Spacing.sm)
+            }
         }
     }
 
@@ -151,39 +155,35 @@ struct ExerciseLibraryView: View {
     // MARK: - Exercise Row
 
     private func exerciseRow(_ exercise: Exercise) -> some View {
-        HStack(spacing: Spacing.md) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(exercise.name)
-                    .font(.ironLogHeadline)
-                    .foregroundColor(AppTheme.textPrimary)
-                Text(exercise.primaryMuscles.joined(separator: " · "))
-                    .font(.ironLogCaption)
-                    .foregroundColor(AppTheme.textSecondary)
-            }
-
-            Spacer()
-
-            HStack(spacing: Spacing.xs) {
-                Button {
-                    infoExercise = exercise
-                } label: {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 18))
-                        .foregroundColor(AppTheme.textTertiary)
-                        .frame(width: 36, height: 36)
+        Button {
+            infoExercise = exercise
+        } label: {
+            HStack(spacing: Spacing.md) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(exercise.name)
+                        .font(.ironLogHeadline)
+                        .foregroundColor(AppTheme.textPrimary)
+                    Text(exercise.primaryMuscles.joined(separator: " · "))
+                        .font(.ironLogCaption)
+                        .foregroundColor(AppTheme.textSecondary)
                 }
+
+                Spacer()
 
                 Button {
                     addToSessionExercise = exercise
                 } label: {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 18))
+                        .font(.system(size: 22))
                         .foregroundColor(AppTheme.accent)
                         .frame(width: 36, height: 36)
                 }
+                .buttonStyle(.plain)
             }
+            .padding(.vertical, Spacing.xs)
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, Spacing.xs)
+        .buttonStyle(.plain)
     }
 
     // MARK: - Empty State
