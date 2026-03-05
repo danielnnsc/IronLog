@@ -9,6 +9,7 @@ struct QueueEditorView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var orderedSessions: [QueuedSession] = []
+    @State private var sessionToDelete: QueuedSession?
 
     private var queuedOnly: [QueuedSession] {
         orderedSessions.filter { $0.status == .queued }
@@ -24,10 +25,32 @@ struct QueueEditorView: View {
                         queueRow(session: session)
                             .listRowBackground(AppTheme.surface)
                             .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    sessionToDelete = session
+                                } label: {
+                                    Label("Skip", systemImage: "trash")
+                                }
+                            }
                     }
                     .onMove { indices, destination in
                         orderedSessions.move(fromOffsets: indices, toOffset: destination)
                     }
+                }
+                .confirmationDialog(
+                    "Skip \(sessionToDelete?.displayName ?? "this session")?",
+                    isPresented: Binding(get: { sessionToDelete != nil }, set: { if !$0 { sessionToDelete = nil } }),
+                    titleVisibility: .visible
+                ) {
+                    Button("Skip Session", role: .destructive) {
+                        if let s = sessionToDelete {
+                            skipSession(s)
+                            sessionToDelete = nil
+                        }
+                    }
+                    Button("Cancel", role: .cancel) { sessionToDelete = nil }
+                } message: {
+                    Text("The session will be removed from the queue. This cannot be undone.")
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
@@ -80,6 +103,12 @@ struct QueueEditorView: View {
             }
         }
         .padding(.vertical, Spacing.sm)
+    }
+
+    private func skipSession(_ session: QueuedSession) {
+        session.status = .skipped
+        orderedSessions.removeAll { $0.id == session.id }
+        try? modelContext.save()
     }
 
     private func saveOrder() {

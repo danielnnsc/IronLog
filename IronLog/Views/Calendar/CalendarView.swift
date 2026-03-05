@@ -9,6 +9,7 @@ struct CalendarView: View {
     @State private var displayedMonth = Date.now
     @State private var selectedDate: Date?
     @State private var showingQueueEditor = false
+    @State private var sessionToSkip: QueuedSession?
 
     private let calendar = Calendar.current
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
@@ -201,23 +202,49 @@ struct CalendarView: View {
     }
 
     private func scheduledDayDetail(session: QueuedSession) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(session.displayName)
-                    .font(.ironLogHeadline)
-                    .foregroundColor(session.isOverdue ? AppTheme.orange : AppTheme.textPrimary)
-                Text(session.isOverdue ? "Overdue — still queued" : "Scheduled")
-                    .font(.ironLogCaption)
-                    .foregroundColor(AppTheme.textSecondary)
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text(session.displayName)
+                        .font(.ironLogHeadline)
+                        .foregroundColor(session.isOverdue ? AppTheme.orange : AppTheme.textPrimary)
+                    Text(session.isOverdue ? "Overdue — still queued" : "Scheduled")
+                        .font(.ironLogCaption)
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+                Spacer()
+                NavigationLink {
+                    DailySessionView(session: session, recentLogs: Array(allLogs))
+                } label: {
+                    Text("View")
+                        .font(.ironLogBody)
+                        .foregroundColor(AppTheme.accent)
+                }
             }
-            Spacer()
-            NavigationLink {
-                DailySessionView(session: session, recentLogs: Array(allLogs))
+
+            Button(role: .destructive) {
+                sessionToSkip = session
             } label: {
-                Text("View")
-                    .font(.ironLogBody)
-                    .foregroundColor(AppTheme.accent)
+                Label("Skip Session", systemImage: "trash")
+                    .font(.ironLogCaption)
+                    .foregroundColor(AppTheme.red)
             }
+        }
+        .confirmationDialog(
+            "Skip \(sessionToSkip?.displayName ?? "this session")?",
+            isPresented: Binding(get: { sessionToSkip != nil }, set: { if !$0 { sessionToSkip = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Skip Session", role: .destructive) {
+                if let s = sessionToSkip {
+                    s.status = .skipped
+                    sessionToSkip = nil
+                    selectedDate = nil
+                }
+            }
+            Button("Cancel", role: .cancel) { sessionToSkip = nil }
+        } message: {
+            Text("The session will be removed from the queue.")
         }
     }
 
