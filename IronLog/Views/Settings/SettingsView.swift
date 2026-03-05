@@ -9,6 +9,9 @@ struct SettingsView: View {
     @AppStorage("accessoryRestSeconds") private var accessoryRestSeconds = 75
     @AppStorage("reminderHour") private var reminderHour = 8               // 8 AM default
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = true
+    @AppStorage("userWeightLbs") private var userWeightLbs = 175
+    @AppStorage("userHeightFeet") private var userHeightFeet = 5
+    @AppStorage("userHeightInchesRemainder") private var userHeightInchesRemainder = 10
 
     @Environment(\.modelContext) private var modelContext
     @State private var showResetConfirm = false
@@ -83,6 +86,39 @@ struct SettingsView: View {
                         } header: {
                             sectionHeader("Alert")
                         }
+                    }
+
+                    // Body Stats
+                    Section {
+                        HStack {
+                            settingIcon("figure.stand", color: AppTheme.blue)
+                            Text("Weight")
+                                .foregroundColor(AppTheme.textPrimary)
+                            Spacer()
+                            Text("\(userWeightLbs) lbs")
+                                .foregroundColor(AppTheme.accent)
+                            Stepper("", value: $userWeightLbs, in: 80...400, step: 5)
+                                .labelsHidden()
+                        }
+
+                        HStack {
+                            settingIcon("ruler", color: AppTheme.blue)
+                            Text("Height")
+                                .foregroundColor(AppTheme.textPrimary)
+                            Spacer()
+                            Text("\(userHeightFeet)'\(userHeightInchesRemainder)\"")
+                                .foregroundColor(AppTheme.accent)
+                            Stepper("", value: $userHeightFeet, in: 4...7)
+                                .labelsHidden()
+                            Stepper("", value: $userHeightInchesRemainder, in: 0...11)
+                                .labelsHidden()
+                        }
+                    } header: {
+                        sectionHeader("Body Stats")
+                    } footer: {
+                        Text("Used to estimate calories burned and synced to Apple Health.")
+                            .font(.ironLogMicro)
+                            .foregroundColor(AppTheme.textTertiary)
                     }
 
                     // About

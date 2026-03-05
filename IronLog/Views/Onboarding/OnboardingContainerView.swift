@@ -15,10 +15,13 @@ struct OnboardingContainerView: View {
     @State private var daysPerWeek: Int = 4
     @State private var selectedInjuries: Set<Injury> = []
     @State private var selectedDays: Set<Weekday> = [.monday, .tuesday, .thursday, .friday]
+    @State private var weightLbs: Int = 175
+    @State private var heightFeet: Int = 5
+    @State private var heightInches: Int = 10
     @State private var isGenerating = false
     @State private var generationError: String?
 
-    private let totalSteps = 6
+    private let totalSteps = 7
 
     var body: some View {
         ZStack {
@@ -49,13 +52,21 @@ struct OnboardingContainerView: View {
                     )
                     .tag(4)
 
+                    OnboardingBodyStatsView(
+                        weightLbs: $weightLbs,
+                        heightFeet: $heightFeet,
+                        heightInches: $heightInches,
+                        onNext: nextStep
+                    )
+                    .tag(5)
+
                     OnboardingReviewView(
                         selectedDays: selectedDays,
                         isGenerating: isGenerating,
                         error: generationError,
                         onConfirm: finishOnboarding
                     )
-                    .tag(5)
+                    .tag(6)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut(duration: 0.3), value: currentStep)
@@ -107,6 +118,10 @@ struct OnboardingContainerView: View {
             do {
                 try generator.generate()
                 await requestNotificationPermission()
+                // Persist body stats
+                UserDefaults.standard.set(weightLbs, forKey: "userWeightLbs")
+                UserDefaults.standard.set(heightFeet, forKey: "userHeightFeet")
+                UserDefaults.standard.set(heightInches, forKey: "userHeightInchesRemainder")
                 hasCompletedOnboarding = true
             } catch {
                 generationError = "Couldn't generate your program. Please try again."

@@ -1,7 +1,7 @@
 import HealthKit
 import Foundation
 
-/// Writes completed strength training workouts to Apple Health.
+/// Writes completed strength training workouts to Apple Health and reads body mass.
 final class HealthKitManager {
 
     static let shared = HealthKitManager()
@@ -19,31 +19,64 @@ final class HealthKitManager {
         return types
     }
 
+    private var typesToRead: Set<HKObjectType> {
+        var types = Set<HKObjectType>()
+        if let bodyMass = HKObjectType.quantityType(forIdentifier: .bodyMass) {
+            types.insert(bodyMass)
+        }
+        return types
+    }
+
     // MARK: - Authorization
 
     func requestAuthorization() async {
         guard isAvailable else { return }
-        try? await store.requestAuthorization(toShare: typesToShare, read: [])
+        try? await store.requestAuthorization(toShare: typesToShare, read: typesToRead)
+    }
+
+    // MARK: - Read Body Mass
+
+    /// Returns the most recent body mass sample from Health in pounds, or nil if unavailable.
+    func fetchBodyMassLbs() async -> Double? {
+        guard isAvailable,
+              let bodyMassType = HKQuantityType.quantityType(forIdentifier: .bodyMass) else { return nil }
+
+        return await withCheckedContinuation { continuation in
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+            let query = HKSampleQuery(
+                sampleType: bodyMassType,
+                predicate: nil,
+                limit: 1,
+                sortDescriptors: [sort]
+            ) { _, samples, _ in
+                guard let sample = samples?.first as? HKQuantitySample else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                continuation.resume(returning: sample.quantity.doubleValue(for: .pound()))
+            }
+            store.execute(query)
+        }
     }
 
     // MARK: - Save Workout
 
     /// Saves a traditional strength training workout to Apple Health.
     /// - Parameters:
-    ///   - startDate:       When the workout began.
+    ///   - startDate:      When the workout began.
     ///   - durationMinutes: Total workout duration.
-    ///   - totalVolumeLbs:  Sum of (weight × reps) across all sets, used to estimate calories.
-    func saveWorkout(startDate: Date, durationMinutes: Int, totalVolumeLbs: Double) async {
+    ///   - bodyWeightLbs:  User's body weight in pounds, used to estimate calories.
+    func saveWorkout(startDate: Date, durationMinutes: Int, bodyWeightLbs: Double) async {
         guard isAvailable else { return }
 
-        // Request auth each time — no-op if already granted.
         await requestAuthorization()
 
         let endDate = startDate.addingTimeInterval(Double(durationMinutes) * 60)
 
-        // Estimate active calories: 5.0 METs × 75 kg body weight × hours
+        // Active calories: 5.0 METs × body weight (kg) × hours
+        let bodyWeightKg = bodyWeightLbs * 0.453592
         let hours = max(Double(durationMinutes) / 60.0, 1.0 / 60.0)
-        let estimatedKcal = 5.0 * 75.0 * hours
+        let estimatedKcal = 5.0 * bodyWeightKg * hours
         let energyBurned = HKQuantity(unit: .kilocalorie(), doubleValue: estimatedKcal)
 
         let workout = HKWorkout(

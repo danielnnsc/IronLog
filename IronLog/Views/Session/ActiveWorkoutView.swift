@@ -642,14 +642,16 @@ struct ActiveWorkoutView: View {
 
         try? modelContext.save()
 
-        // Save to Apple Health in the background
+        // Save to Apple Health — prefer HealthKit body mass, fall back to user-entered weight
         let workoutStart = sessionStartTime
-        let totalVolume = allSets.reduce(0.0) { $0 + $1.weightLbs * Double($1.reps) }
+        let storedWeightLbs = Double(UserDefaults.standard.integer(forKey: "userWeightLbs"))
         Task {
+            let hkWeight = await HealthKitManager.shared.fetchBodyMassLbs()
+            let bodyWeight = hkWeight ?? (storedWeightLbs > 0 ? storedWeightLbs : 175.0)
             await HealthKitManager.shared.saveWorkout(
                 startDate: workoutStart,
                 durationMinutes: duration,
-                totalVolumeLbs: totalVolume
+                bodyWeightLbs: bodyWeight
             )
         }
 
