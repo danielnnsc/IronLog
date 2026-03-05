@@ -6,6 +6,7 @@ struct ExerciseInfoSheet: View {
 
     let exercise: Exercise
     var onSwap: (() -> Void)? = nil
+    var onAdd: (() -> Void)? = nil
 
     @Query private var exercises: [Exercise]
     @Environment(\.dismiss) private var dismiss
@@ -43,7 +44,19 @@ struct ExerciseInfoSheet: View {
                         // Video placeholder
                         videoPlaceholder
 
-                        // Swap button — only shown in workout context
+                        if let onAdd {
+                            Button {
+                                dismiss()
+                                onAdd()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                    Text("Add to Session")
+                                }
+                                .ironLogPrimaryButton()
+                            }
+                        }
+
                         if let onSwap {
                             Button {
                                 dismiss()

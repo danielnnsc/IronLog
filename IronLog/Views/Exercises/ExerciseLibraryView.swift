@@ -88,7 +88,9 @@ struct ExerciseLibraryView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             .searchable(text: $searchText, prompt: "Search by name or muscle")
             .sheet(item: $infoExercise) { ex in
-                ExerciseInfoSheet(exercise: ex)
+                ExerciseInfoSheet(exercise: ex, onAdd: {
+                    addToSessionExercise = ex
+                })
             }
             .sheet(item: $addToSessionExercise) { ex in
                 AddToSessionSheet(exercise: ex, activeProgram: activePrograms.first)
