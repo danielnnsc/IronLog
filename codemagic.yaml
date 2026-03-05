@@ -22,13 +22,6 @@ workflows:
         BUNDLE_ID: com.ironlog.app
         XCODE_SCHEME: IronLog
 
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: main
-          include: true
-
     scripts:
       - name: Install XcodeGen
         script: brew install xcodegen
