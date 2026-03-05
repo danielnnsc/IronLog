@@ -20,8 +20,6 @@ workflows:
 
     environment:
       xcode: latest
-      groups:
-        - ironlog_secrets
       vars:
         XCODE_SCHEME: IronLog
 
@@ -35,11 +33,6 @@ workflows:
     scripts:
       - name: Install XcodeGen
         script: brew install xcodegen
-
-      - name: Write Config.swift from secret
-        script: |
-          printf 'enum Config {\n    static let anthropicAPIKey = "%s"\n}\n' "$ANTHROPIC_API_KEY" \
-            > "$CM_BUILD_DIR/IronLog/Config.swift"
 
       - name: Generate Xcode project
         script: xcodegen generate

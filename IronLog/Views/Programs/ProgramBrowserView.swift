@@ -11,7 +11,7 @@ struct ProgramBrowserView: View {
     @Query(sort: \QueuedSession.queuePosition) private var queuedSessions: [QueuedSession]
 
     @State private var selectedProgram: ProgramDefinition?
-    @State private var showingAICustomizer = false
+    @State private var showingCustomizer = false
 
     private var scheduledDays: [Weekday] {
         // Infer from the current queue's designated dates
@@ -49,12 +49,12 @@ struct ProgramBrowserView: View {
                         }
 
                         Button {
-                            showingAICustomizer = true
+                            showingCustomizer = true
                         } label: {
                             HStack(spacing: Spacing.sm) {
-                                Image(systemName: "sparkles")
+                                Image(systemName: "plus.circle")
                                     .foregroundColor(AppTheme.accent)
-                                Text("Ask AI to Customize")
+                                Text("Add Muscle Group")
                                     .font(.ironLogHeadline)
                                     .foregroundColor(AppTheme.accent)
                             }
@@ -91,11 +91,8 @@ struct ProgramBrowserView: View {
                     onDismiss: { dismiss() }
                 )
             }
-            .sheet(isPresented: $showingAICustomizer) {
-                AICustomizerView(
-                    currentProgramType: currentProgramType ?? .upperLower,
-                    scheduledDays: scheduledDays
-                )
+            .sheet(isPresented: $showingCustomizer) {
+                AddMuscleGroupView()
             }
         }
     }

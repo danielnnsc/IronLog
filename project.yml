@@ -27,7 +27,6 @@ targets:
         excludes:
           - "**/*.md"
           - "**/*.txt"
-          - "Config.example.swift"
 
     resources:
       - path: IronLog/Assets.xcassets

@@ -40,5 +40,3 @@ build/ios/
 *.p12
 *.mobileprovision
 
-# API keys — never commit
-IronLog/Config.swift
