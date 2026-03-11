@@ -39,6 +39,7 @@ struct ActiveWorkoutView: View {
     @State private var completedLog: WorkoutLog?
 
     @State private var infoExercise: Exercise?
+    @State private var showingSwap = false
     @State private var showAbortAlert = false
     @State private var dragOffset: CGFloat = 0
     @State private var navDirection: Int = 1   // 1 = forward, -1 = backward
@@ -86,6 +87,7 @@ struct ActiveWorkoutView: View {
                         .padding(.horizontal, Spacing.md)
                         .padding(.top, Spacing.md)
                     }
+                    .scrollDismissesKeyboard(.interactively)
                     .id(currentExerciseIndex)
                     .transition(.asymmetric(
                         insertion: .move(edge: navDirection >= 0 ? .trailing : .leading),
@@ -165,7 +167,15 @@ struct ActiveWorkoutView: View {
             Text("Your logged sets will be saved.")
         }
         .sheet(item: $infoExercise) { ex in
-            ExerciseInfoSheet(exercise: ex, onSwap: { infoExercise = nil })
+            ExerciseInfoSheet(exercise: ex, onSwap: {
+                infoExercise = nil
+                showingSwap = true
+            })
+        }
+        .sheet(isPresented: $showingSwap) {
+            if let entry = currentEntry, let exercise = currentExercise {
+                ExerciseSwapView(entry: entry, currentExercise: exercise)
+            }
         }
         // Fix: onDismiss dismisses ActiveWorkoutView too, returning to Home
         .fullScreenCover(isPresented: $showingComplete, onDismiss: { dismiss() }) {
@@ -240,14 +250,46 @@ struct ActiveWorkoutView: View {
                     .tracking(1.5)
             }
 
-            Text(currentExercise?.name ?? "")
-                .font(.ironLogDisplay)
-                .foregroundColor(AppTheme.textPrimary)
+            HStack(alignment: .top) {
+                Text(currentExercise?.name ?? "")
+                    .font(.ironLogDisplay)
+                    .foregroundColor(AppTheme.textPrimary)
+
+                Spacer()
+
+                Button {
+                    showingSwap = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.left.arrow.right")
+                        Text("Swap")
+                    }
+                    .font(.ironLogCaption)
+                    .foregroundColor(AppTheme.textSecondary)
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, 6)
+                    .background(AppTheme.surface2)
+                    .clipShape(Capsule())
+                }
+            }
 
             if let entry = currentEntry {
-                Text("\(entry.targetSets) sets · \(entry.targetReps) reps")
+                let repsLabel = entry.targetReps.contains(where: { $0.isLetter })
+                    ? entry.targetReps
+                    : "\(entry.targetReps) reps"
+                Text("\(entry.targetSets) sets · \(repsLabel)")
                     .font(.ironLogBody)
                     .foregroundColor(AppTheme.textSecondary)
+            }
+
+            if let notes = currentEntry?.notes, !notes.isEmpty {
+                Text(notes)
+                    .font(.ironLogCaption)
+                    .foregroundColor(AppTheme.textSecondary)
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, 6)
+                    .background(AppTheme.surface2)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -291,7 +333,12 @@ struct ActiveWorkoutView: View {
                                     .foregroundColor(AppTheme.textPrimary)
                             }
 
-                            Text(String(format: "%.0f", weights[entryID] ?? 0))
+                            TextField("0", value: Binding(
+                                get: { weights[entryID] ?? 0 },
+                                set: { weights[entryID] = max(0, $0) }
+                            ), format: .number)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.center)
                                 .font(.system(size: 28, weight: .bold, design: .rounded))
                                 .foregroundColor(AppTheme.textPrimary)
                                 .frame(minWidth: 60)
@@ -406,7 +453,7 @@ struct ActiveWorkoutView: View {
     private func rpeSelector(entryID: UUID) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack {
-                Text("RPE (optional)")
+                Text("Set Difficulty (optional)")
                     .font(.ironLogCaption)
                     .foregroundColor(AppTheme.textTertiary)
                 Spacer()
@@ -435,7 +482,7 @@ struct ActiveWorkoutView: View {
             }
 
             if let r = rpe[entryID], let selectedValue = r {
-                Text("RPE \(selectedValue) — \(rpeDefinition(selectedValue))")
+                Text("Difficulty \(selectedValue) — \(rpeDefinition(selectedValue))")
                     .font(.ironLogCaption)
                     .foregroundColor(AppTheme.accent)
                     .padding(.top, 2)
@@ -468,7 +515,7 @@ struct ActiveWorkoutView: View {
                                 .font(.ironLogBody)
                                 .foregroundColor(AppTheme.textPrimary)
                             if let rpeVal = set.rpe {
-                                Text("RPE \(rpeVal)")
+                                Text("Difficulty \(rpeVal)")
                                     .font(.ironLogCaption)
                                     .foregroundColor(AppTheme.textSecondary)
                             }
@@ -528,7 +575,9 @@ struct ActiveWorkoutView: View {
                                         .background(AppTheme.surface2).clipShape(Circle())
                                         .foregroundColor(AppTheme.textPrimary)
                                 }
-                                Text("\(Int(editWeight)) lbs")
+                                TextField("0", value: $editWeight, format: .number)
+                                    .keyboardType(.decimalPad)
+                                    .multilineTextAlignment(.center)
                                     .font(.ironLogBody).fontWeight(.semibold)
                                     .foregroundColor(AppTheme.textPrimary)
                                     .frame(minWidth: 64)

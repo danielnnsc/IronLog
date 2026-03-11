@@ -5,10 +5,12 @@ struct CalendarView: View {
 
     @Query(sort: \QueuedSession.queuePosition) private var allSessions: [QueuedSession]
     @Query(sort: \WorkoutLog.completedAt) private var allLogs: [WorkoutLog]
+    @Query private var allExercises: [Exercise]
 
     @State private var displayedMonth = Date.now
     @State private var selectedDate: Date?
     @State private var showingQueueEditor = false
+    @State private var showingLogActivity = false
     @State private var sessionToSkip: QueuedSession?
 
     private let calendar = Calendar.current
@@ -48,6 +50,11 @@ struct CalendarView: View {
             }
             .sheet(isPresented: $showingQueueEditor) {
                 QueueEditorView(sessions: allSessions)
+            }
+            .sheet(isPresented: $showingLogActivity) {
+                if let date = selectedDate {
+                    LogActivityView(date: date)
+                }
             }
         }
     }
@@ -166,18 +173,37 @@ struct CalendarView: View {
 
     private func selectedDayDetail(for date: Date) -> some View {
         let session = sessionForDate(date)
-        let log = logForDate(date)
+        let logs = logsForDate(date)
 
         return VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text(date.formatted(.dateTime.weekday(.wide).month(.wide).day()))
-                .font(.ironLogHeadline)
-                .foregroundColor(AppTheme.textPrimary)
+            HStack {
+                Text(date.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                    .font(.ironLogHeadline)
+                    .foregroundColor(AppTheme.textPrimary)
+                Spacer()
+                Button {
+                    showingLogActivity = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                        Text("Log Activity")
+                    }
+                    .font(.ironLogCaption)
+                    .foregroundColor(AppTheme.accent)
+                }
+            }
 
-            if let log {
+            ForEach(logs, id: \.id) { log in
                 completedDayDetail(log: log)
-            } else if let session {
+                if log.id != logs.last?.id { Divider().background(AppTheme.border) }
+            }
+
+            if let session, logs.first(where: { $0.queuedSession?.id == session.id }) == nil {
+                if !logs.isEmpty { Divider().background(AppTheme.border) }
                 scheduledDayDetail(session: session)
-            } else {
+            }
+
+            if logs.isEmpty && session == nil {
                 Text("Rest day")
                     .font(.ironLogBody)
                     .foregroundColor(AppTheme.textSecondary)
@@ -188,16 +214,40 @@ struct CalendarView: View {
     }
 
     private func completedDayDetail(log: WorkoutLog) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack {
-                Image(systemName: "checkmark.circle.fill").foregroundColor(AppTheme.green)
-                Text(log.queuedSession?.displayName ?? "Completed")
-                    .font(.ironLogHeadline)
-                    .foregroundColor(AppTheme.textPrimary)
+        let isAdHoc = log.customTitle != nil
+        let title = log.customTitle ?? log.queuedSession?.displayName ?? "Completed"
+        let icon = isAdHoc ? "figure.run.circle.fill" : "checkmark.circle.fill"
+
+        return HStack {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                HStack {
+                    Image(systemName: icon).foregroundColor(isAdHoc ? AppTheme.blue : AppTheme.green)
+                    Text(title)
+                        .font(.ironLogHeadline)
+                        .foregroundColor(AppTheme.textPrimary)
+                }
+                if isAdHoc {
+                    if let duration = log.durationMinutes {
+                        Text("\(duration) min")
+                            .font(.ironLogCaption)
+                            .foregroundColor(AppTheme.textSecondary)
+                    }
+                } else {
+                    Text("\(log.sets.count) sets · \(Int(log.sets.reduce(0) { $0 + $1.weightLbs * Double($1.reps) })) lbs volume")
+                        .font(.ironLogCaption)
+                        .foregroundColor(AppTheme.textSecondary)
+                }
             }
-            Text("\(log.sets.count) sets · \(Int(log.sets.reduce(0) { $0 + $1.weightLbs * Double($1.reps) })) lbs volume")
-                .font(.ironLogCaption)
-                .foregroundColor(AppTheme.textSecondary)
+            Spacer()
+            if !isAdHoc {
+                NavigationLink {
+                    SessionHistoryDetailView(log: log, exercises: allExercises)
+                } label: {
+                    Text("View")
+                        .font(.ironLogBody)
+                        .foregroundColor(AppTheme.accent)
+                }
+            }
         }
     }
 
@@ -255,7 +305,7 @@ struct CalendarView: View {
     }
 
     private func dayState(for date: Date) -> DayState {
-        if logForDate(date) != nil { return .completed }
+        if !logsForDate(date).isEmpty { return .completed }
         if let session = sessionForDate(date) {
             if session.status == .skipped { return .skipped }
             if session.isDeload { return .deload }
@@ -272,8 +322,8 @@ struct CalendarView: View {
         }
     }
 
-    private func logForDate(_ date: Date) -> WorkoutLog? {
-        allLogs.first { calendar.isDate($0.completedAt, inSameDayAs: date) }
+    private func logsForDate(_ date: Date) -> [WorkoutLog] {
+        allLogs.filter { calendar.isDate($0.completedAt, inSameDayAs: date) }
     }
 
     private func dotColor(for state: DayState) -> Color {

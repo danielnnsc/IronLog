@@ -17,9 +17,18 @@ enum ExerciseTier: String, Codable, CaseIterable {
     /// Default rest target range in seconds
     var restRange: ClosedRange<Int> {
         switch self {
-        case .anchor: return 150...180   // 2.5–3 min
-        case .secondary: return 90...120
-        case .accessory: return 60...90
+        case .anchor:
+            let s = UserDefaults.standard.integer(forKey: "anchorRestSeconds")
+            let v = s > 0 ? s : 165
+            return v...v
+        case .secondary:
+            let s = UserDefaults.standard.integer(forKey: "secondaryRestSeconds")
+            let v = s > 0 ? s : 105
+            return v...v
+        case .accessory:
+            let s = UserDefaults.standard.integer(forKey: "accessoryRestSeconds")
+            let v = s > 0 ? s : 75
+            return v...v
         }
     }
 }
@@ -35,6 +44,7 @@ final class Exercise {
     var movementDescription: String
     var formCues: String
     var isBodyweight: Bool
+    var isTimeBased: Bool?               // true for holds/planks — target is duration not reps
     var suggestedStartWeightLbs: Double? // nil = no suggestion (bodyweight / cable stack)
     var alternativeIDs: [UUID]           // IDs of swap alternatives
 
@@ -48,6 +58,7 @@ final class Exercise {
         movementDescription: String,
         formCues: String,
         isBodyweight: Bool = false,
+        isTimeBased: Bool? = nil,
         suggestedStartWeightLbs: Double? = nil,
         alternativeIDs: [UUID] = []
     ) {
@@ -60,6 +71,7 @@ final class Exercise {
         self.movementDescription = movementDescription
         self.formCues = formCues
         self.isBodyweight = isBodyweight
+        self.isTimeBased = isTimeBased
         self.suggestedStartWeightLbs = suggestedStartWeightLbs
         self.alternativeIDs = alternativeIDs
     }

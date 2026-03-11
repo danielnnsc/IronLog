@@ -170,7 +170,7 @@ struct ProgramDetailView: View {
 
     // MARK: - Actions
 
-    private func switchProgram() {
+    @MainActor private func switchProgram() {
         let days = scheduledDays.isEmpty
             ? [Weekday.monday, .tuesday, .thursday, .friday]
             : scheduledDays
@@ -185,7 +185,7 @@ struct ProgramDetailView: View {
         onDismiss()
     }
 
-    private func addSession() {
+    @MainActor private func addSession() {
         guard let name = selectedSessionName else { return }
         let days = scheduledDays.isEmpty
             ? [Weekday.monday, .tuesday, .thursday, .friday]

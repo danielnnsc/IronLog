@@ -93,7 +93,7 @@ struct SessionHistoryDetailView: View {
                         .foregroundColor(AppTheme.textPrimary)
 
                     if let rpe = set.rpe {
-                        Text("RPE \(rpe)")
+                        Text("Difficulty \(rpe)")
                             .font(.ironLogCaption)
                             .foregroundColor(AppTheme.textSecondary)
                     }

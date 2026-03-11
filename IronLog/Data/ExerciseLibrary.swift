@@ -493,6 +493,7 @@ enum ExerciseLibrary {
                 movementDescription: "Isometric hold on forearms and toes. Fundamental anti-extension core exercise for stability.",
                 formCues: "Forearms flat, elbows under shoulders. Body forms a straight line — no sagging hips or raised butt. Squeeze glutes and abs simultaneously. Breathe normally. Progress by adding time.",
                 isBodyweight: true,
+                isTimeBased: true,
                 suggestedStartWeightLbs: nil,
                 alternativeIDs: [abWheelRolloutID]
             ),

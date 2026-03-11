@@ -22,8 +22,9 @@ struct ProgramGenerator {
         let templates = buildTemplates(for: programType)
         for t in templates { modelContext.insert(t) }
 
-        let program = Program(scheduledDays: scheduledDays, sessionTemplates: templates)
+        let program = Program(scheduledDays: scheduledDays, sessionTemplates: [])
         modelContext.insert(program)
+        program.sessionTemplates = templates
 
         let sessions = buildQueue(templates: templates)
         for s in sessions { modelContext.insert(s) }
@@ -163,7 +164,7 @@ struct ProgramGenerator {
                           targetSets: 3, targetReps: "10-12", sortOrder: 1),
             TemplateEntry(exerciseID: ExerciseLibrary.romanianDLID,
                           targetSets: 3, targetReps: "8-10",
-                          notes: "Focus on hamstring stretch", sortOrder: 2),
+                          notes: "Secondary slot — lighter than Lower B. Focus on hamstring stretch and control, not load.", sortOrder: 2),
             TemplateEntry(exerciseID: ExerciseLibrary.legCurlID,
                           targetSets: 3, targetReps: "12-15", sortOrder: 3),
             TemplateEntry(exerciseID: ExerciseLibrary.calfRaiseID,
@@ -196,7 +197,7 @@ struct ProgramGenerator {
         t.entries = [
             TemplateEntry(exerciseID: ExerciseLibrary.romanianDLID,
                           targetSets: 4, targetReps: "6-8",
-                          notes: "Anchor – heavier than Lower A secondary slot", sortOrder: 0),
+                          notes: "Anchor — your primary hinge day. Go heavier than Lower A. This is a strength set, not a stretch set.", sortOrder: 0),
             TemplateEntry(exerciseID: ExerciseLibrary.bulgarianSSID,
                           targetSets: 3, targetReps: "10-12",
                           notes: "Each leg – use dumbbell", sortOrder: 1),

@@ -7,6 +7,7 @@ final class WorkoutLog {
     var completedAt: Date
     var durationMinutes: Int?
     var notes: String?
+    var customTitle: String?  // non-nil for ad-hoc activities (run, abs, etc.)
 
     @Relationship(deleteRule: .cascade)
     var sets: [SetLog]
@@ -25,7 +26,8 @@ final class WorkoutLog {
         durationMinutes: Int? = nil,
         notes: String? = nil,
         sets: [SetLog] = [],
-        queuedSession: QueuedSession? = nil
+        queuedSession: QueuedSession? = nil,
+        customTitle: String? = nil
     ) {
         self.id = id
         self.completedAt = completedAt
@@ -33,5 +35,6 @@ final class WorkoutLog {
         self.notes = notes
         self.sets = sets
         self.queuedSession = queuedSession
+        self.customTitle = customTitle
     }
 }

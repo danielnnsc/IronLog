@@ -170,10 +170,14 @@ struct AddExerciseView: View {
 
         let defaultReps: String
         let defaultSets: Int
-        switch exercise.tier {
-        case .anchor:    defaultSets = 4; defaultReps = "6-8"
-        case .secondary: defaultSets = 3; defaultReps = "8-10"
-        case .accessory: defaultSets = 3; defaultReps = "12-15"
+        if exercise.isTimeBased == true {
+            defaultSets = 3; defaultReps = "30 sec"
+        } else {
+            switch exercise.tier {
+            case .anchor:    defaultSets = 4; defaultReps = "6-8"
+            case .secondary: defaultSets = 3; defaultReps = "8-10"
+            case .accessory: defaultSets = 3; defaultReps = "12-15"
+            }
         }
 
         let nextOrder = (template.entries.map(\.sortOrder).max() ?? -1) + 1
