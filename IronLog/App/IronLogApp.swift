@@ -7,6 +7,7 @@ struct IronLogApp: App {
     let container: ModelContainer
 
     init() {
+        _ = NotificationManager.shared // registers UNUserNotificationCenterDelegate
         do {
             let schema = Schema([
                 Exercise.self,

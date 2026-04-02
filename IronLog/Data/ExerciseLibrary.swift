@@ -59,6 +59,28 @@ enum ExerciseLibrary {
     static let tBarRowID          = UUID(uuidString: "E0000037-0000-0000-0000-000000000000")!
     static let preacherCurlID     = UUID(uuidString: "E0000038-0000-0000-0000-000000000000")!
 
+    // User-requested additions
+    static let seatedOHPID             = UUID(uuidString: "E0000039-0000-0000-0000-000000000000")!
+    static let bicycleCrunchID         = UUID(uuidString: "E0000040-0000-0000-0000-000000000000")!
+    static let reverseCrunchID         = UUID(uuidString: "E0000041-0000-0000-0000-000000000000")!
+    static let benchDipsID             = UUID(uuidString: "E0000042-0000-0000-0000-000000000000")!
+
+    // Researched additions
+    static let latPulldownID           = UUID(uuidString: "E0000043-0000-0000-0000-000000000000")!
+    static let closeGripLatPulldownID  = UUID(uuidString: "E0000044-0000-0000-0000-000000000000")!
+    static let singleArmDBRowID        = UUID(uuidString: "E0000045-0000-0000-0000-000000000000")!
+    static let chestSupportedRowID     = UUID(uuidString: "E0000046-0000-0000-0000-000000000000")!
+    static let seatedCableFlyLowID     = UUID(uuidString: "E0000047-0000-0000-0000-000000000000")!
+    static let skullCrushersID         = UUID(uuidString: "E0000048-0000-0000-0000-000000000000")!
+    static let concentrationCurlID     = UUID(uuidString: "E0000049-0000-0000-0000-000000000000")!
+    static let inclineDBCurlID         = UUID(uuidString: "E0000050-0000-0000-0000-000000000000")!
+    static let sumoDeadliftID          = UUID(uuidString: "E0000051-0000-0000-0000-000000000000")!
+    static let frontSquatID            = UUID(uuidString: "E0000052-0000-0000-0000-000000000000")!
+    static let goodMorningsID          = UUID(uuidString: "E0000053-0000-0000-0000-000000000000")!
+    static let nordicHamstringCurlID   = UUID(uuidString: "E0000054-0000-0000-0000-000000000000")!
+    static let cableGluteKickbackID    = UUID(uuidString: "E0000055-0000-0000-0000-000000000000")!
+    static let dbShrugsID              = UUID(uuidString: "E0000056-0000-0000-0000-000000000000")!
+
     // MARK: - All Exercises
 
     static func allExercises() -> [Exercise] {
@@ -610,6 +632,262 @@ enum ExerciseLibrary {
                 isBodyweight: false,
                 suggestedStartWeightLbs: 30,
                 alternativeIDs: [bicepCurlID, hammerCurlID]
+            ),
+
+            // ── User-Requested Additions ─────────────────────────────────────
+
+            Exercise(
+                id: seatedOHPID,
+                name: "Seated Barbell Shoulder Press",
+                primaryMuscles: ["Front Delt"],
+                secondaryMuscles: ["Lateral Delt", "Triceps", "Upper Chest"],
+                tier: .secondary,
+                bodyRegion: "upper",
+                movementDescription: "Barbell overhead press performed seated. The fixed base eliminates leg drive and core compensation, placing maximum demand on the deltoids and triceps.",
+                formCues: "Set the bench to 90° and sit with your back fully supported. Unrack the bar at upper-chest height with a grip just outside shoulder-width. Brace your core — don't arch your lower back away from the pad. Press straight up to lockout, then lower under control to just below chin height. Keep wrists stacked over elbows throughout.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 55,
+                alternativeIDs: [ohpID, dbShoulderPressID, arnoldPressID]
+            ),
+
+            Exercise(
+                id: bicycleCrunchID,
+                name: "Bicycle Crunch",
+                primaryMuscles: ["Obliques"],
+                secondaryMuscles: ["Abs", "Hip Flexors"],
+                tier: .accessory,
+                bodyRegion: "core",
+                movementDescription: "Alternating elbow-to-knee crunch performed on the floor. One of the most effective exercises for the obliques and upper abs when done with full rotation and control.",
+                formCues: "Hands lightly behind your head — don't pull on your neck. Bring one knee in while rotating the opposite elbow toward it. Fully extend the other leg low to the ground. The rotation should come from your torso, not your elbow. Slow and controlled — avoid rushing through the reps. Aim for 15–20 reps per side per set.",
+                isBodyweight: true,
+                suggestedStartWeightLbs: nil,
+                alternativeIDs: [russianTwistID, cableCrunchID]
+            ),
+
+            Exercise(
+                id: reverseCrunchID,
+                name: "Reverse Crunch",
+                primaryMuscles: ["Abs"],
+                secondaryMuscles: ["Hip Flexors"],
+                tier: .accessory,
+                bodyRegion: "core",
+                movementDescription: "Lying floor exercise where the hips curl up toward the chest rather than the torso curling up. Targets the lower portion of the rectus abdominis.",
+                formCues: "Lie flat, arms at your sides or gripping something behind your head for stability. Start with legs raised to 90°. Curl your hips off the floor by contracting your lower abs — not by swinging. Your knees should move toward your chest, not straight up. Lower slowly back to the start. Keep the movement small and deliberate.",
+                isBodyweight: true,
+                suggestedStartWeightLbs: nil,
+                alternativeIDs: [hangingLegRaiseID, cableCrunchID]
+            ),
+
+            Exercise(
+                id: benchDipsID,
+                name: "Bench Dips",
+                primaryMuscles: ["Triceps"],
+                secondaryMuscles: ["Front Delt", "Chest"],
+                tier: .accessory,
+                bodyRegion: "upper",
+                movementDescription: "Tricep dip using a flat bench for support. Hands on the bench behind you, lower your body toward the floor and press back up. Can be progressed by elevating the feet or adding a weight plate on the lap.",
+                formCues: "Hands shoulder-width on the bench edge, fingers forward. Keep your hips close to the bench as you lower. Lower until elbows reach 90° — don't go deeper to protect the shoulder joint. Press straight back up to full extension. Keep your torso upright — leaning forward shifts load to the chest. For added resistance, place a weight plate on your thighs.",
+                isBodyweight: true,
+                suggestedStartWeightLbs: nil,
+                alternativeIDs: [dipsID, tricepPushdownID, ohTricepExtID]
+            ),
+
+            // ── Researched Additions ─────────────────────────────────────────
+
+            Exercise(
+                id: latPulldownID,
+                name: "Lat Pulldown",
+                primaryMuscles: ["Lats"],
+                secondaryMuscles: ["Biceps", "Rear Delt", "Teres Major"],
+                tier: .secondary,
+                bodyRegion: "upper",
+                movementDescription: "Cable machine pull of a wide bar to the upper chest. The primary vertical pulling alternative to pull-ups for lat width and thickness.",
+                formCues: "Sit with thighs locked under the pad. Lean back very slightly (about 10°). Pull the bar to your upper chest — not behind your neck. Lead with your elbows, driving them down and back. Squeeze lats at the bottom. Slow, controlled return to full arm extension.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: nil,
+                alternativeIDs: [pullUpsID, closeGripLatPulldownID]
+            ),
+
+            Exercise(
+                id: closeGripLatPulldownID,
+                name: "Close-Grip Lat Pulldown",
+                primaryMuscles: ["Lats"],
+                secondaryMuscles: ["Biceps", "Lower Traps"],
+                tier: .secondary,
+                bodyRegion: "upper",
+                movementDescription: "Lat pulldown using a narrow neutral-grip attachment. The closer grip allows a greater range of motion and stronger bicep involvement.",
+                formCues: "Use a V-bar or parallel grip. Sit upright or with a very slight lean back. Pull the handle toward your sternum. Squeeze the lats hard at the bottom — feel the contraction before releasing. Full extension at the top.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: nil,
+                alternativeIDs: [latPulldownID, cableRowID]
+            ),
+
+            Exercise(
+                id: singleArmDBRowID,
+                name: "Single-Arm Dumbbell Row",
+                primaryMuscles: ["Upper Back", "Lats"],
+                secondaryMuscles: ["Biceps", "Rear Delt"],
+                tier: .secondary,
+                bodyRegion: "upper",
+                movementDescription: "Unilateral dumbbell row with one hand and knee on a bench. Allows heavy loading and a full range of motion on each side independently.",
+                formCues: "Place the same-side knee and hand on the bench for support. Keep your back flat and parallel to the floor. Pull the dumbbell toward your hip, not your shoulder. Let the arm fully extend at the bottom for a full stretch. Don't rotate your torso to cheat the weight up.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 45,
+                alternativeIDs: [barbellRowID, cableRowID]
+            ),
+
+            Exercise(
+                id: chestSupportedRowID,
+                name: "Chest-Supported Row",
+                primaryMuscles: ["Upper Back"],
+                secondaryMuscles: ["Biceps", "Rear Delt", "Lower Traps"],
+                tier: .secondary,
+                bodyRegion: "upper",
+                movementDescription: "Dumbbell or barbell row with the chest on an incline bench, eliminating lower back involvement and momentum.",
+                formCues: "Set bench to 30–45°. Lie chest-down. Let arms hang fully at the bottom. Pull dumbbells toward your hips, squeezing shoulder blades together. The chest support removes the temptation to heave — use strict form and feel the back working.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 30,
+                alternativeIDs: [barbellRowID, singleArmDBRowID]
+            ),
+
+            Exercise(
+                id: seatedCableFlyLowID,
+                name: "Cable Fly (Low to High)",
+                primaryMuscles: ["Chest"],
+                secondaryMuscles: ["Front Delt"],
+                tier: .accessory,
+                bodyRegion: "upper",
+                movementDescription: "Cable fly with the pulleys set low, sweeping the arms up and across the body. Targets the upper chest and provides constant tension through the full arc.",
+                formCues: "Set cables at the lowest position. Stand centered between the stacks. Slight lean forward, soft bend in the elbows. Drive your hands up and together in an arc — like hugging a barrel. Squeeze chest at the top when hands meet. Control the return slowly.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: nil,
+                alternativeIDs: [cableChestFlyeID, inclineDBPressID]
+            ),
+
+            Exercise(
+                id: skullCrushersID,
+                name: "Skull Crushers",
+                primaryMuscles: ["Triceps"],
+                secondaryMuscles: [],
+                tier: .accessory,
+                bodyRegion: "upper",
+                movementDescription: "Lying EZ-bar or dumbbell tricep extension to the forehead or behind the head. Excellent for the long and medial heads of the triceps.",
+                formCues: "Lie flat on a bench, upper arms vertical. Lower the bar to your forehead (or slightly behind) by bending only at the elbows. Keep upper arms still — if they drift, reduce the weight. Press back to full extension. Use an EZ-bar to reduce wrist strain.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 40,
+                alternativeIDs: [ohTricepExtID, tricepPushdownID]
+            ),
+
+            Exercise(
+                id: concentrationCurlID,
+                name: "Concentration Curl",
+                primaryMuscles: ["Biceps"],
+                secondaryMuscles: ["Brachialis"],
+                tier: .accessory,
+                bodyRegion: "upper",
+                movementDescription: "Seated unilateral curl with the elbow braced against the inner thigh. Eliminates momentum entirely and forces peak bicep contraction.",
+                formCues: "Sit on a bench, lean forward. Brace the back of your upper arm against your inner thigh. Curl all the way up and squeeze hard at the top. Lower slowly. Don't let the elbow drift — the thigh brace is the point. 3–4 sets of 10–15 reps per arm.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 20,
+                alternativeIDs: [bicepCurlID, preacherCurlID]
+            ),
+
+            Exercise(
+                id: inclineDBCurlID,
+                name: "Incline Dumbbell Curl",
+                primaryMuscles: ["Biceps"],
+                secondaryMuscles: ["Brachialis"],
+                tier: .accessory,
+                bodyRegion: "upper",
+                movementDescription: "Dumbbell curl performed on an incline bench. The arm hangs behind the body, providing a longer stretch and peak bicep activation.",
+                formCues: "Set bench to 45–60°. Sit back and let arms hang straight down. Curl both or alternately, keeping elbows back (don't let them drift forward). Supinate at the top. The stretch at the bottom is the point — don't cut the range short.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 20,
+                alternativeIDs: [bicepCurlID, concentrationCurlID]
+            ),
+
+            Exercise(
+                id: sumoDeadliftID,
+                name: "Sumo Deadlift",
+                primaryMuscles: ["Glutes", "Hamstrings"],
+                secondaryMuscles: ["Quads", "Lower Back", "Traps", "Core"],
+                tier: .anchor,
+                bodyRegion: "lower",
+                movementDescription: "Wide-stance deadlift with toes pointed out. Shorter range of motion than conventional, with greater glute and quad involvement.",
+                formCues: "Stance wide — feet outside hip-width, toes pointed out 30–45°. Grip inside your legs. Push your knees out in line with your toes before pulling. Chest tall, hips lower than conventional. Drive your feet into the floor like you're spreading the floor apart. Lock out hips and knees simultaneously.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 135,
+                alternativeIDs: [conventionalDLID, romanianDLID, hipThrustID]
+            ),
+
+            Exercise(
+                id: frontSquatID,
+                name: "Front Squat",
+                primaryMuscles: ["Quads"],
+                secondaryMuscles: ["Glutes", "Core", "Upper Back"],
+                tier: .anchor,
+                bodyRegion: "lower",
+                movementDescription: "Barbell squat with the bar held in the front rack position. Demands an upright torso and strong upper back, with greater quad activation than back squat.",
+                formCues: "Bar rests on front delts, fingertips on the bar (clean grip) or arms crossed. Elbows high throughout — if they drop, the bar rolls forward. Stay very upright; front squats punish any forward lean. Hit depth: hip crease below knees. Drive knees out as you stand.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 75,
+                alternativeIDs: [backSquatID, gobletSquatID]
+            ),
+
+            Exercise(
+                id: goodMorningsID,
+                name: "Good Mornings",
+                primaryMuscles: ["Hamstrings"],
+                secondaryMuscles: ["Glutes", "Lower Back", "Erectors"],
+                tier: .secondary,
+                bodyRegion: "lower",
+                movementDescription: "Barbell on the upper back, hinge forward until the torso is close to parallel with the floor. A powerful hamstring and lower back strengthener.",
+                formCues: "Light weight — this exercise gets heavy fast. Soft bend in the knees. Hinge from the hips, not the waist. Keep your back flat: a rounded lower back here is dangerous. Lower until you feel a strong hamstring stretch. Drive hips forward to return. Never use momentum.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 45,
+                alternativeIDs: [romanianDLID, conventionalDLID]
+            ),
+
+            Exercise(
+                id: nordicHamstringCurlID,
+                name: "Nordic Hamstring Curl",
+                primaryMuscles: ["Hamstrings"],
+                secondaryMuscles: ["Glutes", "Calves"],
+                tier: .secondary,
+                bodyRegion: "lower",
+                movementDescription: "Kneel with feet anchored, lower your torso toward the floor using only hamstring strength. One of the most effective hamstring strengthening and injury prevention exercises.",
+                formCues: "Kneel on a pad, ankles secured under a bar or with a partner. Body stays rigid like a plank — don't bend at the hips. Lower as slowly as possible using hamstring tension. Catch yourself with your hands, then use hands to push back up for the first few reps. As you progress, rely on hands less. 3–4 sets of 4–8 reps.",
+                isBodyweight: true,
+                suggestedStartWeightLbs: nil,
+                alternativeIDs: [legCurlID, romanianDLID]
+            ),
+
+            Exercise(
+                id: cableGluteKickbackID,
+                name: "Cable Glute Kickback",
+                primaryMuscles: ["Glutes"],
+                secondaryMuscles: ["Hamstrings"],
+                tier: .accessory,
+                bodyRegion: "lower",
+                movementDescription: "Ankle cuff attached to a low cable pulley, kick the leg back to full hip extension. Isolates the glutes with constant cable tension.",
+                formCues: "Attach ankle cuff to the low cable. Stand facing the stack, hold the frame for balance. Hinge forward slightly from the hips. Kick the leg directly back — not out to the side. Squeeze the glute hard at full extension. Keep hips square; don't rotate. Slow, controlled return. 3–4 sets of 12–15 reps per side.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: nil,
+                alternativeIDs: [hipThrustID, walkingLungesID]
+            ),
+
+            Exercise(
+                id: dbShrugsID,
+                name: "Dumbbell Shrugs",
+                primaryMuscles: ["Traps"],
+                secondaryMuscles: ["Neck", "Levator Scapulae"],
+                tier: .accessory,
+                bodyRegion: "upper",
+                movementDescription: "Standing dumbbell shrug targeting the upper trapezius. Simple and effective for building trap thickness.",
+                formCues: "Hold dumbbells at your sides, arms straight. Shrug straight up — think about touching your shoulders to your ears. No rolling of the shoulders (forward/backward circles add no benefit and risk injury). Hold 1 second at the top. Lower slowly. 3–4 sets of 12–15 reps.",
+                isBodyweight: false,
+                suggestedStartWeightLbs: 40,
+                alternativeIDs: [facePullID, barbellRowID]
             ),
         ]
     }

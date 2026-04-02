@@ -96,16 +96,19 @@ struct AddExerciseView: View {
             }
             .searchable(text: $searchText, prompt: "Search exercises or muscles")
             .confirmationDialog(
-                "Add \(exerciseToAdd?.name ?? "") to \(session.sessionTemplate?.name ?? "this session")?",
+                "Add \(exerciseToAdd?.name ?? "")?",
                 isPresented: Binding(get: { exerciseToAdd != nil }, set: { if !$0 { exerciseToAdd = nil } }),
                 titleVisibility: .visible
             ) {
-                Button("Add to all future \(session.sessionTemplate?.name ?? "") sessions") {
-                    if let exercise = exerciseToAdd { addExercise(exercise) }
+                Button("Just this session") {
+                    if let exercise = exerciseToAdd { addExercise(exercise, sessionOnly: true) }
+                }
+                Button("All future \(session.sessionTemplate?.name ?? "") sessions") {
+                    if let exercise = exerciseToAdd { addExercise(exercise, sessionOnly: false) }
                 }
                 Button("Cancel", role: .cancel) { exerciseToAdd = nil }
             } message: {
-                Text("The exercise will be added to every \(session.sessionTemplate?.name ?? "") session going forward.")
+                Text("Add just to today, or to every \(session.sessionTemplate?.name ?? "") session going forward?")
             }
         }
     }
@@ -165,7 +168,7 @@ struct AddExerciseView: View {
 
     // MARK: - Add Logic
 
-    private func addExercise(_ exercise: Exercise) {
+    private func addExercise(_ exercise: Exercise, sessionOnly: Bool) {
         guard let template = session.sessionTemplate else { return }
 
         let defaultReps: String
@@ -190,6 +193,13 @@ struct AddExerciseView: View {
 
         modelContext.insert(entry)
         template.entries.append(entry)
+
+        if sessionOnly {
+            let key = "sessionOnly_\(session.id.uuidString)"
+            var ids = UserDefaults.standard.stringArray(forKey: key) ?? []
+            ids.append(entry.id.uuidString)
+            UserDefaults.standard.set(ids, forKey: key)
+        }
 
         try? modelContext.save()
         exerciseToAdd = nil

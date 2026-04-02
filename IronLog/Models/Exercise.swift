@@ -47,6 +47,7 @@ final class Exercise {
     var isTimeBased: Bool?               // true for holds/planks — target is duration not reps
     var suggestedStartWeightLbs: Double? // nil = no suggestion (bodyweight / cable stack)
     var alternativeIDs: [UUID]           // IDs of swap alternatives
+    var isCustom: Bool                   // true = user-created, not from ExerciseLibrary
 
     init(
         id: UUID = UUID(),
@@ -60,7 +61,8 @@ final class Exercise {
         isBodyweight: Bool = false,
         isTimeBased: Bool? = nil,
         suggestedStartWeightLbs: Double? = nil,
-        alternativeIDs: [UUID] = []
+        alternativeIDs: [UUID] = [],
+        isCustom: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -74,5 +76,6 @@ final class Exercise {
         self.isTimeBased = isTimeBased
         self.suggestedStartWeightLbs = suggestedStartWeightLbs
         self.alternativeIDs = alternativeIDs
+        self.isCustom = isCustom
     }
 }

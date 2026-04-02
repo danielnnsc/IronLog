@@ -13,10 +13,12 @@ struct HomeView: View {
     private var recentLogs: [WorkoutLog]
 
     @Query(filter: #Predicate<Program> { $0.isActive }) private var activePrograms: [Program]
+    @Query private var allExercises: [Exercise]
 
     @State private var showingSession = false
     @State private var navigateToActive = false
     @State private var showingProgramBrowser = false
+    @State private var sessionToResume: QueuedSession? = nil
 
     private var activeProgramType: ProgramType? {
         // Infer the program type from the session template names
@@ -42,6 +44,7 @@ struct HomeView: View {
                     VStack(spacing: Spacing.lg) {
                         headerSection
                         activeProgramRow
+                        if !todaysLogs.isEmpty { completedTodaySection }
                         nextSessionCard
                         if queue.count > 1 { upcomingSection }
                         if !recentLogs.isEmpty { recentSection }
@@ -57,6 +60,14 @@ struct HomeView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             .sheet(isPresented: $showingProgramBrowser) {
                 ProgramBrowserView(currentProgramType: activeProgramType)
+            }
+            .navigationDestination(isPresented: Binding(
+                get: { sessionToResume != nil },
+                set: { if !$0 { sessionToResume = nil } }
+            )) {
+                if let s = sessionToResume {
+                    ActiveWorkoutView(session: s, recentLogs: recentLogs)
+                }
             }
         }
     }
@@ -237,6 +248,198 @@ struct HomeView: View {
         .ironLogCard()
     }
 
+    // MARK: - Completed Today
+
+    private var todaysLogs: [WorkoutLog] {
+        recentLogs.filter { Calendar.current.isDateInToday($0.completedAt) }
+    }
+
+    @ViewBuilder
+    private var completedTodaySection: some View {
+        if todaysLogs.count == 1, let log = todaysLogs.first {
+            achievementCard(log: log)
+        } else {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                HStack(spacing: Spacing.xs) {
+                    Image(systemName: "flame.fill")
+                        .foregroundColor(AppTheme.orange)
+                        .font(.system(size: 13))
+                    Text("COMPLETED TODAY (\(todaysLogs.count))")
+                        .font(.ironLogMicro)
+                        .fontWeight(.bold)
+                        .foregroundColor(AppTheme.orange)
+                        .tracking(1.2)
+                }
+                VStack(spacing: 0) {
+                    ForEach(Array(todaysLogs.enumerated()), id: \.element.id) { index, log in
+                        if index > 0 { Divider().background(AppTheme.border) }
+                        achievementRow(log: log)
+                    }
+                }
+                .ironLogCard()
+            }
+        }
+    }
+
+    private func achievementCard(log: WorkoutLog) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: Spacing.xs) {
+                Image(systemName: "flame.fill")
+                    .foregroundColor(AppTheme.orange)
+                    .font(.system(size: 16))
+                Text(log.queuedSession?.displayName ?? log.customTitle ?? "Workout")
+                    .font(.ironLogTitle)
+                    .foregroundColor(AppTheme.textPrimary)
+            }
+
+            HStack(spacing: Spacing.md) {
+                Label("\(log.sets.count) sets", systemImage: "dumbbell.fill")
+                    .font(.ironLogCaption)
+                    .foregroundColor(AppTheme.textSecondary)
+                Label(volumeString(log), systemImage: "scalemass.fill")
+                    .font(.ironLogCaption)
+                    .foregroundColor(AppTheme.textSecondary)
+                if let dur = log.durationMinutes {
+                    Label("\(dur)m", systemImage: "clock.fill")
+                        .font(.ironLogCaption)
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+            }
+
+            Divider().background(AppTheme.border)
+
+            HStack(spacing: Spacing.sm) {
+                if let session = log.queuedSession {
+                    NavigationLink {
+                        SessionCompleteView(
+                            log: log,
+                            session: session,
+                            allExercises: allExercises,
+                            priorLogs: recentLogs.filter { $0.id != log.id }
+                        )
+                    } label: {
+                        Text("View Session")
+                            .ironLogSecondaryButton()
+                    }
+                    Button {
+                        reopenSession(log: log, session: session)
+                    } label: {
+                        Text("Reopen")
+                            .ironLogPrimaryButton()
+                    }
+                } else {
+                    NavigationLink {
+                        SessionHistoryDetailView(log: log, exercises: allExercises)
+                    } label: {
+                        Text("View Session")
+                            .ironLogSecondaryButton()
+                    }
+                }
+            }
+        }
+        .padding(Spacing.md)
+        .ironLogCard()
+    }
+
+    private func achievementRow(log: WorkoutLog) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(log.queuedSession?.displayName ?? log.customTitle ?? "Workout")
+                    .font(.ironLogBody)
+                    .foregroundColor(AppTheme.textPrimary)
+                HStack(spacing: Spacing.sm) {
+                    Text("\(log.sets.count) sets")
+                        .font(.ironLogCaption)
+                        .foregroundColor(AppTheme.textSecondary)
+                    Text("·")
+                        .font(.ironLogCaption)
+                        .foregroundColor(AppTheme.textTertiary)
+                    Text(volumeString(log))
+                        .font(.ironLogCaption)
+                        .foregroundColor(AppTheme.textSecondary)
+                    if let dur = log.durationMinutes {
+                        Text("·")
+                            .font(.ironLogCaption)
+                            .foregroundColor(AppTheme.textTertiary)
+                        Text("\(dur)m")
+                            .font(.ironLogCaption)
+                            .foregroundColor(AppTheme.textSecondary)
+                    }
+                }
+            }
+            Spacer()
+            if let session = log.queuedSession {
+                HStack(spacing: Spacing.xs) {
+                    NavigationLink {
+                        SessionCompleteView(
+                            log: log,
+                            session: session,
+                            allExercises: allExercises,
+                            priorLogs: recentLogs.filter { $0.id != log.id }
+                        )
+                    } label: {
+                        Text("View")
+                            .font(.ironLogCaption)
+                            .foregroundColor(AppTheme.accent)
+                            .padding(.horizontal, Spacing.sm)
+                            .padding(.vertical, 6)
+                            .background(AppTheme.accent.opacity(0.12))
+                            .clipShape(Capsule())
+                    }
+                    Button {
+                        reopenSession(log: log, session: session)
+                    } label: {
+                        Text("Reopen")
+                            .font(.ironLogCaption)
+                            .foregroundColor(AppTheme.orange)
+                            .padding(.horizontal, Spacing.sm)
+                            .padding(.vertical, 6)
+                            .background(AppTheme.orange.opacity(0.12))
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+        }
+        .padding(Spacing.md)
+    }
+
+    private func volumeString(_ log: WorkoutLog) -> String {
+        let vol = log.sets.reduce(0.0) { $0 + $1.weightLbs * Double($1.reps) }
+        if vol >= 1000 { return String(format: "%.1fk lbs", vol / 1000) }
+        return "\(Int(vol)) lbs"
+    }
+
+    private func reopenSession(log: WorkoutLog, session: QueuedSession) {
+        let entries = session.sessionTemplate?.entries ?? []
+        var draftSets: [DraftSet] = []
+        for set in log.sets {
+            guard let entry = entries.first(where: { $0.exerciseID == set.exerciseID }) else { continue }
+            draftSets.append(DraftSet(
+                entryID: entry.id.uuidString,
+                setNumber: set.setNumber,
+                exerciseID: set.exerciseID.uuidString,
+                weightLbs: set.weightLbs,
+                reps: set.reps,
+                targetReps: set.targetReps,
+                rpe: set.rpe,
+                hitTarget: set.hitTarget
+            ))
+        }
+        let key = DraftSet.draftKey(for: session.id)
+        if let data = try? JSONEncoder().encode(draftSets) {
+            UserDefaults.standard.set(data, forKey: key)
+            let startApprox = log.completedAt.addingTimeInterval(
+                -Double((log.durationMinutes ?? 0) * 60)
+            )
+            UserDefaults.standard.set(startApprox.timeIntervalSince1970, forKey: key + "_start")
+        }
+        modelContext.delete(log)
+        session.status = .queued
+        session.workoutLog = nil
+        try? modelContext.save()
+        sessionToResume = session
+    }
+
     // MARK: - Upcoming
 
     private var upcomingSection: some View {
@@ -252,24 +455,29 @@ struct HomeView: View {
     }
 
     private func upcomingRow(session: QueuedSession) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(session.displayName)
-                    .font(.ironLogBody)
-                    .foregroundColor(AppTheme.textPrimary)
-                if let date = session.designatedDate {
-                    Text(date.formatted(.dateTime.weekday(.abbreviated).month().day()))
-                        .font(.ironLogCaption)
-                        .foregroundColor(AppTheme.textSecondary)
+        NavigationLink {
+            DailySessionView(session: session, recentLogs: recentLogs)
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(session.displayName)
+                        .font(.ironLogBody)
+                        .foregroundColor(AppTheme.textPrimary)
+                    if let date = session.designatedDate {
+                        Text(date.formatted(.dateTime.weekday(.abbreviated).month().day()))
+                            .font(.ironLogCaption)
+                            .foregroundColor(AppTheme.textSecondary)
+                    }
                 }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.ironLogCaption)
+                    .foregroundColor(AppTheme.textTertiary)
             }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.ironLogCaption)
-                .foregroundColor(AppTheme.textTertiary)
+            .padding(Spacing.md)
+            .ironLogCard()
         }
-        .padding(Spacing.md)
-        .ironLogCard()
+        .buttonStyle(.plain)
     }
 
     // MARK: - Recent
@@ -287,21 +495,35 @@ struct HomeView: View {
     }
 
     private func recentLogRow(log: WorkoutLog) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(log.queuedSession?.displayName ?? "Session")
-                    .font(.ironLogBody)
-                    .foregroundColor(AppTheme.textPrimary)
-                Text(log.completedAt.formatted(.dateTime.weekday(.abbreviated).month().day()))
-                    .font(.ironLogCaption)
-                    .foregroundColor(AppTheme.textSecondary)
+        NavigationLink {
+            if let session = log.queuedSession {
+                SessionCompleteView(
+                    log: log,
+                    session: session,
+                    allExercises: allExercises,
+                    priorLogs: recentLogs.filter { $0.id != log.id }
+                )
+            } else {
+                SessionHistoryDetailView(log: log, exercises: allExercises)
             }
-            Spacer()
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(AppTheme.green)
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(log.queuedSession?.displayName ?? log.customTitle ?? "Session")
+                        .font(.ironLogBody)
+                        .foregroundColor(AppTheme.textPrimary)
+                    Text(log.completedAt.formatted(.dateTime.weekday(.abbreviated).month().day()))
+                        .font(.ironLogCaption)
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(AppTheme.green)
+            }
+            .padding(Spacing.md)
+            .ironLogCard()
         }
-        .padding(Spacing.md)
-        .ironLogCard()
+        .buttonStyle(.plain)
     }
 }
 

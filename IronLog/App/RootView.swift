@@ -16,6 +16,12 @@ struct RootView: View {
             }
         }
         .task {
+            #if DEBUG
+            if CommandLine.arguments.contains("-devSeed") {
+                try? DevSeeder.seed(in: modelContext)
+                return
+            }
+            #endif
             // Seed exercises on every launch (safe — exits immediately if already seeded)
             try? await MainActor.run {
                 try DataSeeder.seedExercisesIfNeeded(in: modelContext)

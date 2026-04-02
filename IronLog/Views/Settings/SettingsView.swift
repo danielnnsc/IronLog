@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UserNotifications
 
 struct SettingsView: View {
 
@@ -16,6 +17,7 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var showResetConfirm = false
     @State private var showAbsencePrompt = false
+    @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
 
     @Query(sort: \WorkoutLog.completedAt, order: .reverse) private var logs: [WorkoutLog]
 
@@ -66,6 +68,26 @@ struct SettingsView: View {
                             }
                             .pickerStyle(.menu)
                             .tint(AppTheme.accent)
+                        }
+
+                        HStack {
+                            settingIcon("bell.badge.fill", color: notificationStatus == .authorized ? AppTheme.green : AppTheme.red)
+                            Text("Rest Timer Alerts")
+                                .foregroundColor(AppTheme.textPrimary)
+                            Spacer()
+                            if notificationStatus == .authorized {
+                                Text("On")
+                                    .foregroundColor(AppTheme.green)
+                                    .font(.ironLogCaption)
+                            } else {
+                                Button("Enable in Settings") {
+                                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                                        UIApplication.shared.open(url)
+                                    }
+                                }
+                                .font(.ironLogCaption)
+                                .foregroundColor(AppTheme.accent)
+                            }
                         }
                     } header: {
                         sectionHeader("Notifications")
@@ -170,6 +192,10 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showAbsencePrompt) {
                 AbsencePromptView()
+            }
+            .task {
+                let settings = await UNUserNotificationCenter.current().notificationSettings()
+                notificationStatus = settings.authorizationStatus
             }
         }
     }

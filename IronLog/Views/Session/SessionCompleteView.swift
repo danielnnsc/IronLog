@@ -7,11 +7,13 @@ struct SessionCompleteView: View {
     let session: QueuedSession
     let allExercises: [Exercise]
     let priorLogs: [WorkoutLog]
+    var onResume: (() -> Void)? = nil
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
     @State private var showDeloadPrompt = false
+    @State private var showingEdit = false
 
     private var prLiftIDs: [UUID] {
         ProgressionEngine.newPRs(in: log, against: priorLogs)
@@ -39,6 +41,8 @@ struct SessionCompleteView: View {
                     restSummaryCard
                     setBreakdownCard
                     if !stalledExercises.isEmpty { stallCard }
+                    editSetsButton
+                    if onResume != nil { resumeButton }
                     doneButton
                     Spacer(minLength: Spacing.xxl)
                 }
@@ -246,6 +250,33 @@ struct SessionCompleteView: View {
         )
         .sheet(isPresented: $showDeloadPrompt) {
             DeloadPromptView(session: session)
+        }
+    }
+
+    // MARK: - Edit Sets
+
+    private var editSetsButton: some View {
+        Button {
+            showingEdit = true
+        } label: {
+            Text("Edit Sets")
+                .ironLogSecondaryButton()
+        }
+        .sheet(isPresented: $showingEdit) {
+            NavigationStack {
+                SessionHistoryDetailView(log: log, exercises: allExercises)
+            }
+        }
+    }
+
+    // MARK: - Resume
+
+    private var resumeButton: some View {
+        Button {
+            onResume?()
+        } label: {
+            Text("Resume Workout")
+                .ironLogSecondaryButton()
         }
     }
 

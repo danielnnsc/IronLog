@@ -34,15 +34,24 @@ struct ActiveWorkoutView: View {
     @State private var editWeight: Double = 0
     @State private var editReps: Int = 0
 
+    // Set timer for time-based exercises (plank, etc.)
+    @State private var setTimerElapsed: Int = 0
+    @State private var setTimerRunning: Bool = false
+    @State private var setTimer_timer: Timer?
+    @State private var setTimerStartDate: Date? = nil
+
     @State private var sessionStartTime = Date.now
     @State private var showingComplete = false
     @State private var completedLog: WorkoutLog?
+    @State private var isResuming = false
 
     @State private var infoExercise: Exercise?
     @State private var showingSwap = false
+    @State private var showingAddExercise = false
     @State private var showAbortAlert = false
     @State private var dragOffset: CGFloat = 0
     @State private var navDirection: Int = 1   // 1 = forward, -1 = backward
+    @State private var showingExerciseHistory = false
 
     // MARK: - Computed
 
@@ -81,8 +90,8 @@ struct ActiveWorkoutView: View {
                         VStack(spacing: Spacing.md) {
                             exerciseHeader
                             setLogger
+                            exerciseHistoryView
                             if !currentSets.isEmpty { loggedSetsView }
-                            Spacer(minLength: Spacing.xxl)
                         }
                         .padding(.horizontal, Spacing.md)
                         .padding(.top, Spacing.md)
@@ -177,14 +186,27 @@ struct ActiveWorkoutView: View {
                 ExerciseSwapView(entry: entry, currentExercise: exercise)
             }
         }
-        // Fix: onDismiss dismisses ActiveWorkoutView too, returning to Home
-        .fullScreenCover(isPresented: $showingComplete, onDismiss: { dismiss() }) {
+        .sheet(isPresented: $showingAddExercise) {
+            AddExerciseView(session: session, onAdded: {
+                currentExerciseIndex = entries.count - 1
+            })
+        }
+        .fullScreenCover(isPresented: $showingComplete, onDismiss: {
+            if isResuming {
+                isResuming = false
+                completedLog = nil
+                restoreDraftIfNeeded()
+            } else {
+                dismiss()
+            }
+        }) {
             if let log = completedLog {
                 SessionCompleteView(
                     log: log,
                     session: session,
                     allExercises: exercises,
-                    priorLogs: recentLogs
+                    priorLogs: recentLogs,
+                    onResume: { reopenWorkout() }
                 )
             }
         }
@@ -195,9 +217,14 @@ struct ActiveWorkoutView: View {
         .onDisappear { stopRestTimer() }
         // Fix: sync rest elapsed when returning from background
         .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active, let start = restStartDate, restTimer != .idle {
-                restElapsed = Int(Date.now.timeIntervalSince(start))
-                if restElapsed >= restTarget { restTimer = .ringing }
+            if newPhase == .active {
+                if let start = restStartDate, restTimer != .idle {
+                    restElapsed = Int(Date.now.timeIntervalSince(start))
+                    if restElapsed >= restTarget { restTimer = .ringing }
+                }
+                if let start = setTimerStartDate, setTimerRunning {
+                    setTimerElapsed = Int(Date.now.timeIntervalSince(start))
+                }
             }
         }
         // Haptic when rest timer completes
@@ -205,6 +232,10 @@ struct ActiveWorkoutView: View {
             if newValue == .ringing {
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
             }
+        }
+        .onChange(of: currentExerciseIndex) { _, _ in
+            resetSetTimer()
+            showingExerciseHistory = false
         }
     }
 
@@ -232,6 +263,17 @@ struct ActiveWorkoutView: View {
                                 .font(.ironLogMicro)
                                 .foregroundColor(idx == currentExerciseIndex ? AppTheme.accent : AppTheme.textSecondary)
                         }
+                    }
+                }
+
+                Button { showingAddExercise = true } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: "plus.circle")
+                            .font(.system(size: 10))
+                            .foregroundColor(AppTheme.textTertiary)
+                        Text("Add")
+                            .font(.ironLogMicro)
+                            .foregroundColor(AppTheme.textTertiary)
                     }
                 }
             }
@@ -295,6 +337,105 @@ struct ActiveWorkoutView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    // MARK: - Exercise History
+
+    private func historySessions(for exerciseID: UUID) -> [(date: Date, sets: [SetLog])] {
+        let currentTemplateID = session.sessionTemplate?.id
+        return recentLogs
+            .filter { log in
+                guard let currentTemplateID else {
+                    return log.sets.contains { $0.exerciseID == exerciseID }
+                }
+                return log.queuedSession?.sessionTemplate?.id == currentTemplateID
+                    && log.sets.contains { $0.exerciseID == exerciseID }
+            }
+            .prefix(5)
+            .compactMap { log in
+                let sets = log.sets
+                    .filter { $0.exerciseID == exerciseID }
+                    .sorted { $0.setNumber < $1.setNumber }
+                return (date: log.completedAt, sets: sets)
+            }
+    }
+
+    private func ghostSetCard(date: Date, sets: [SetLog]) -> some View {
+        let isTimeBased = currentExercise?.isTimeBased == true
+        return VStack(alignment: .leading, spacing: Spacing.xs) {
+            Text(date.formatted(.dateTime.month(.abbreviated).day().year()))
+                .font(.ironLogMicro)
+                .fontWeight(.bold)
+                .foregroundColor(AppTheme.textTertiary)
+                .tracking(1.5)
+
+            ForEach(sets) { set in
+                HStack {
+                    Text("Set \(set.setNumber)")
+                        .font(.ironLogCaption)
+                        .foregroundColor(AppTheme.textTertiary)
+                        .frame(width: 44, alignment: .leading)
+
+                    Text(isTimeBased
+                         ? formatSetTimer(set.reps)
+                         : "\(Int(set.weightLbs)) lbs × \(set.reps) reps")
+                        .font(.ironLogBody)
+                        .foregroundColor(AppTheme.textTertiary)
+
+                    if let rpeVal = set.rpe {
+                        Text("· Difficulty \(rpeVal)")
+                            .font(.ironLogCaption)
+                            .foregroundColor(AppTheme.textTertiary)
+                    }
+
+                    Spacer()
+                }
+                .padding(.vertical, 6)
+            }
+        }
+        .padding(Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+        .opacity(0.55)
+    }
+
+    private var exerciseHistoryView: some View {
+        guard let entry = currentEntry else { return AnyView(EmptyView()) }
+        let sessions = historySessions(for: entry.exerciseID)
+        guard !sessions.isEmpty else { return AnyView(EmptyView()) }
+
+        return AnyView(
+            VStack(spacing: Spacing.sm) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showingExerciseHistory.toggle()
+                    }
+                } label: {
+                    HStack {
+                        Text("LAST SESSION")
+                            .font(.ironLogMicro)
+                            .foregroundColor(AppTheme.textTertiary)
+                            .tracking(1.5)
+                        Spacer()
+                        Image(systemName: showingExerciseHistory ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(AppTheme.textTertiary)
+                    }
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.xs)
+                }
+
+                if showingExerciseHistory {
+                    VStack(spacing: Spacing.sm) {
+                        ForEach(Array(sessions.enumerated()), id: \.offset) { _, session in
+                            ghostSetCard(date: session.date, sets: session.sets)
+                        }
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+        )
+    }
+
     // MARK: - Set Logger
 
     private var setLogger: some View {
@@ -302,6 +443,10 @@ struct ActiveWorkoutView: View {
         let targetMet = currentSets.count >= entry.targetSets
         let setNumber = currentSets.count + 1
         let entryID = entry.id
+
+        let canLog = currentExercise?.isTimeBased == true
+            ? (!setTimerRunning && setTimerElapsed > 0)
+            : (reps[entryID] ?? 0) > 0
 
         return AnyView(
             VStack(spacing: Spacing.md) {
@@ -313,94 +458,97 @@ struct ActiveWorkoutView: View {
                     Spacer()
                 }
 
-                // Weight and reps inputs
-                HStack(spacing: Spacing.md) {
-                    // Weight
-                    VStack(spacing: Spacing.xs) {
-                        Text("WEIGHT (lbs)")
-                            .font(.ironLogMicro)
-                            .foregroundColor(AppTheme.textTertiary)
-                            .tracking(1)
+                // Weight and reps inputs (or set timer for time-based exercises)
+                if currentExercise?.isTimeBased == true {
+                    setTimerView(entryID: entryID)
+                } else {
+                    HStack(spacing: Spacing.md) {
+                        // Weight
+                        VStack(spacing: Spacing.xs) {
+                            Text("WEIGHT (lbs)")
+                                .font(.ironLogMicro)
+                                .foregroundColor(AppTheme.textTertiary)
+                                .tracking(1)
 
-                        HStack(spacing: Spacing.sm) {
-                            Button {
-                                weights[entryID] = max(0, (weights[entryID] ?? 0) - 5)
-                            } label: {
-                                Image(systemName: "minus")
-                                    .frame(width: 36, height: 36)
-                                    .background(AppTheme.surface2)
-                                    .clipShape(Circle())
+                            HStack(spacing: Spacing.sm) {
+                                Button {
+                                    weights[entryID] = max(0, (weights[entryID] ?? 0) - 5)
+                                } label: {
+                                    Image(systemName: "minus")
+                                        .frame(width: 36, height: 36)
+                                        .background(AppTheme.surface2)
+                                        .clipShape(Circle())
+                                        .foregroundColor(AppTheme.textPrimary)
+                                }
+
+                                TextField("0", value: Binding(
+                                    get: { weights[entryID] ?? 0 },
+                                    set: { weights[entryID] = max(0, $0) }
+                                ), format: .number)
+                                    .keyboardType(.decimalPad)
+                                    .multilineTextAlignment(.center)
+                                    .font(.system(size: 28, weight: .bold, design: .rounded))
                                     .foregroundColor(AppTheme.textPrimary)
-                            }
+                                    .frame(minWidth: 60)
 
-                            TextField("0", value: Binding(
-                                get: { weights[entryID] ?? 0 },
-                                set: { weights[entryID] = max(0, $0) }
-                            ), format: .number)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.center)
-                                .font(.system(size: 28, weight: .bold, design: .rounded))
-                                .foregroundColor(AppTheme.textPrimary)
-                                .frame(minWidth: 60)
-
-                            Button {
-                                weights[entryID] = (weights[entryID] ?? 0) + 5
-                            } label: {
-                                Image(systemName: "plus")
-                                    .frame(width: 36, height: 36)
-                                    .background(AppTheme.surface2)
-                                    .clipShape(Circle())
-                                    .foregroundColor(AppTheme.textPrimary)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(Spacing.md)
-                    .background(AppTheme.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-
-                    // Reps
-                    VStack(spacing: Spacing.xs) {
-                        Text("REPS")
-                            .font(.ironLogMicro)
-                            .foregroundColor(AppTheme.textTertiary)
-                            .tracking(1)
-
-                        HStack(spacing: Spacing.sm) {
-                            Button {
-                                reps[entryID] = max(0, (reps[entryID] ?? 0) - 1)
-                            } label: {
-                                Image(systemName: "minus")
-                                    .frame(width: 36, height: 36)
-                                    .background(AppTheme.surface2)
-                                    .clipShape(Circle())
-                                    .foregroundColor(AppTheme.textPrimary)
-                            }
-
-                            Text("\(reps[entryID] ?? 0)")
-                                .font(.system(size: 28, weight: .bold, design: .rounded))
-                                .foregroundColor(AppTheme.textPrimary)
-                                .frame(minWidth: 40)
-
-                            Button {
-                                reps[entryID] = (reps[entryID] ?? 0) + 1
-                            } label: {
-                                Image(systemName: "plus")
-                                    .frame(width: 36, height: 36)
-                                    .background(AppTheme.surface2)
-                                    .clipShape(Circle())
-                                    .foregroundColor(AppTheme.textPrimary)
+                                Button {
+                                    weights[entryID] = (weights[entryID] ?? 0) + 5
+                                } label: {
+                                    Image(systemName: "plus")
+                                        .frame(width: 36, height: 36)
+                                        .background(AppTheme.surface2)
+                                        .clipShape(Circle())
+                                        .foregroundColor(AppTheme.textPrimary)
+                                }
                             }
                         }
+                        .frame(maxWidth: .infinity)
+                        .padding(Spacing.md)
+                        .background(AppTheme.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+
+                        // Reps
+                        VStack(spacing: Spacing.xs) {
+                            Text("REPS")
+                                .font(.ironLogMicro)
+                                .foregroundColor(AppTheme.textTertiary)
+                                .tracking(1)
+
+                            HStack(spacing: Spacing.sm) {
+                                Button {
+                                    reps[entryID] = max(0, (reps[entryID] ?? 0) - 1)
+                                } label: {
+                                    Image(systemName: "minus")
+                                        .frame(width: 36, height: 36)
+                                        .background(AppTheme.surface2)
+                                        .clipShape(Circle())
+                                        .foregroundColor(AppTheme.textPrimary)
+                                }
+
+                                Text("\(reps[entryID] ?? 0)")
+                                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                                    .foregroundColor(AppTheme.textPrimary)
+                                    .frame(minWidth: 40)
+
+                                Button {
+                                    reps[entryID] = (reps[entryID] ?? 0) + 1
+                                } label: {
+                                    Image(systemName: "plus")
+                                        .frame(width: 36, height: 36)
+                                        .background(AppTheme.surface2)
+                                        .clipShape(Circle())
+                                        .foregroundColor(AppTheme.textPrimary)
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(Spacing.md)
+                        .background(AppTheme.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(Spacing.md)
-                    .background(AppTheme.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.md))
                 }
 
-                rpeSelector(entryID: entryID)
-
+                // Log Set button — inline, directly under inputs
                 if targetMet {
                     HStack(spacing: Spacing.sm) {
                         Text("Target met ✓")
@@ -417,17 +565,19 @@ struct ActiveWorkoutView: View {
                                 .background(AppTheme.accent.opacity(0.12))
                                 .clipShape(Capsule())
                         }
-                        .disabled((reps[entryID] ?? 0) == 0)
-                        .opacity((reps[entryID] ?? 0) == 0 ? 0.4 : 1)
+                        .disabled(!canLog)
+                        .opacity(canLog ? 1 : 0.4)
                     }
                 } else {
                     Button { logSet() } label: {
                         Text("Log Set \(setNumber)")
                             .ironLogPrimaryButton()
                     }
-                    .disabled((reps[entryID] ?? 0) == 0)
-                    .opacity((reps[entryID] ?? 0) == 0 ? 0.4 : 1)
+                    .disabled(!canLog)
+                    .opacity(canLog ? 1 : 0.4)
                 }
+
+                rpeSelector(entryID: entryID)
             }
         )
     }
@@ -511,7 +661,9 @@ struct ActiveWorkoutView: View {
                             .frame(width: 44, alignment: .leading)
 
                         if !isBeingEdited {
-                            Text("\(Int(set.weightLbs)) lbs × \(set.reps) reps")
+                            Text(currentExercise?.isTimeBased == true
+                                 ? formatSetTimer(set.reps)
+                                 : "\(Int(set.weightLbs)) lbs × \(set.reps) reps")
                                 .font(.ironLogBody)
                                 .foregroundColor(AppTheme.textPrimary)
                             if let rpeVal = set.rpe {
@@ -761,6 +913,7 @@ struct ActiveWorkoutView: View {
         )
 
         loggedSets[entry.id, default: []].append(set)
+        resetSetTimer()
         saveDraft()
         startRestTimer(for: exercise)
     }
@@ -819,6 +972,76 @@ struct ActiveWorkoutView: View {
         NotificationManager.shared.cancelRestComplete()
     }
 
+    // MARK: - Set Timer (time-based exercises)
+
+    private func startSetTimer() {
+        setTimerStartDate = Date.now
+        setTimerElapsed = 0
+        setTimerRunning = true
+        setTimer_timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            guard let start = setTimerStartDate else { return }
+            setTimerElapsed = Int(Date.now.timeIntervalSince(start))
+        }
+    }
+
+    private func stopSetTimer(entryID: UUID) {
+        if let start = setTimerStartDate {
+            setTimerElapsed = Int(Date.now.timeIntervalSince(start))
+        }
+        setTimer_timer?.invalidate()
+        setTimer_timer = nil
+        setTimerStartDate = nil
+        setTimerRunning = false
+        reps[entryID] = setTimerElapsed
+    }
+
+    private func resetSetTimer() {
+        setTimer_timer?.invalidate()
+        setTimer_timer = nil
+        setTimerStartDate = nil
+        setTimerRunning = false
+        setTimerElapsed = 0
+    }
+
+    private func formatSetTimer(_ seconds: Int) -> String {
+        let m = seconds / 60
+        let s = seconds % 60
+        return String(format: "%d:%02d", m, s)
+    }
+
+    // MARK: - Set Timer View
+
+    private func setTimerView(entryID: UUID) -> some View {
+        VStack(spacing: Spacing.md) {
+            Text(formatSetTimer(setTimerElapsed))
+                .font(.system(size: 64, weight: .bold, design: .monospaced))
+                .foregroundColor(setTimerRunning ? AppTheme.accent : AppTheme.textPrimary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Spacing.md)
+                .background(AppTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+
+            Button {
+                if setTimerRunning {
+                    stopSetTimer(entryID: entryID)
+                } else {
+                    startSetTimer()
+                }
+            } label: {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: setTimerRunning ? "stop.fill" : "play.fill")
+                    Text(setTimerRunning ? "Stop" : (setTimerElapsed > 0 ? "Restart" : "Start"))
+                }
+                .font(.ironLogHeadline)
+                .foregroundColor(setTimerRunning ? AppTheme.red : AppTheme.green)
+                .frame(maxWidth: .infinity)
+                .padding(Spacing.md)
+                .background((setTimerRunning ? AppTheme.red : AppTheme.green).opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+            }
+        }
+    }
+
     private func finishWorkout() {
         stopRestTimer()
 
@@ -830,18 +1053,37 @@ struct ActiveWorkoutView: View {
         }
 
         let duration = Int(Date.now.timeIntervalSince(sessionStartTime) / 60)
+
+        // Insert parent first (empty sets), then insert and attach each set.
+        // SwiftData requires the owner to be tracked before children are assigned.
         let workoutLog = WorkoutLog(
             completedAt: .now,
             durationMinutes: duration,
-            sets: allSets,
+            sets: [],
             queuedSession: session
         )
-
         modelContext.insert(workoutLog)
-        for set in allSets { modelContext.insert(set) }
+
+        for set in allSets {
+            modelContext.insert(set)
+            workoutLog.sets.append(set)
+        }
 
         session.status = .completed
         session.workoutLog = workoutLog
+
+        // Remove any exercises that were added just for this session
+        let sessionOnlyKey = "sessionOnly_\(session.id.uuidString)"
+        let sessionOnlyIDs = (UserDefaults.standard.stringArray(forKey: sessionOnlyKey) ?? [])
+            .compactMap { UUID(uuidString: $0) }
+        if !sessionOnlyIDs.isEmpty, let template = session.sessionTemplate {
+            let toRemove = template.entries.filter { sessionOnlyIDs.contains($0.id) }
+            for entry in toRemove {
+                template.entries.removeAll { $0.id == entry.id }
+                modelContext.delete(entry)
+            }
+            UserDefaults.standard.removeObject(forKey: sessionOnlyKey)
+        }
 
         try? modelContext.save()
         clearDraft()
@@ -862,20 +1104,46 @@ struct ActiveWorkoutView: View {
         showingComplete = true
     }
 
+    // MARK: - Reopen
+
+    private func reopenWorkout() {
+        guard let log = completedLog else { return }
+        let entries = session.sessionTemplate?.entries ?? []
+
+        // Reconstruct the draft from the completed WorkoutLog's sets,
+        // mapping exerciseID → entryID via the session template
+        var draftSets: [DraftSet] = []
+        for set in log.sets {
+            guard let entry = entries.first(where: { $0.exerciseID == set.exerciseID }) else { continue }
+            draftSets.append(DraftSet(
+                entryID: entry.id.uuidString,
+                setNumber: set.setNumber,
+                exerciseID: set.exerciseID.uuidString,
+                weightLbs: set.weightLbs,
+                reps: set.reps,
+                targetReps: set.targetReps,
+                rpe: set.rpe,
+                hitTarget: set.hitTarget
+            ))
+        }
+        if let data = try? JSONEncoder().encode(draftSets) {
+            UserDefaults.standard.set(data, forKey: draftKey)
+            UserDefaults.standard.set(log.completedAt.timeIntervalSince1970, forKey: draftKey + "_start")
+        }
+
+        // Revert SwiftData state
+        modelContext.delete(log)
+        session.status = .queued
+        session.workoutLog = nil
+        try? modelContext.save()
+
+        isResuming = true
+        showingComplete = false
+    }
+
     // MARK: - Draft Autosave
 
-    private var draftKey: String { "workoutDraft_\(session.id.uuidString)" }
-
-    private struct DraftSet: Codable {
-        let entryID: String
-        let setNumber: Int
-        let exerciseID: String
-        let weightLbs: Double
-        let reps: Int
-        let targetReps: String
-        let rpe: Int?
-        let hitTarget: Bool
-    }
+    private var draftKey: String { DraftSet.draftKey(for: session.id) }
 
     private func saveDraft() {
         var draftSets: [DraftSet] = []
@@ -958,4 +1226,19 @@ struct ActiveWorkoutView: View {
 
 enum RestTimerState {
     case idle, running, ringing
+}
+
+struct DraftSet: Codable {
+    let entryID: String
+    let setNumber: Int
+    let exerciseID: String
+    let weightLbs: Double
+    let reps: Int
+    let targetReps: String
+    let rpe: Int?
+    let hitTarget: Bool
+
+    static func draftKey(for sessionID: UUID) -> String {
+        "workoutDraft_\(sessionID.uuidString)"
+    }
 }

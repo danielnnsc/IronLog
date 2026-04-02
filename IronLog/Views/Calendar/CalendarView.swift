@@ -239,9 +239,14 @@ struct CalendarView: View {
                 }
             }
             Spacer()
-            if !isAdHoc {
+            if !isAdHoc, let session = log.queuedSession {
                 NavigationLink {
-                    SessionHistoryDetailView(log: log, exercises: allExercises)
+                    SessionCompleteView(
+                        log: log,
+                        session: session,
+                        allExercises: allExercises,
+                        priorLogs: allLogs.filter { $0.id != log.id }
+                    )
                 } label: {
                     Text("View")
                         .font(.ironLogBody)
